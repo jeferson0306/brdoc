@@ -3,30 +3,49 @@ package utils
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	"os"
 	"regexp"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/go-redis/redis/v8"
+	"golang.org/x/text/unicode/norm"
 )
 
 var ctx = context.Background()
 
+var (
+	nonDigitsRegex = regexp.MustCompile(`\D`)
+	emailRegex     = regexp.MustCompile(`(?i)^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
+	nameRegex      = regexp.MustCompile(`[^\p{L}\s\-']`)
+)
+
 // Initialize Redis client
 var rdb = redis.NewClient(&redis.Options{
-	Addr: "localhost:6379",
+	Addr: getRedisAddr(),
 })
+
+func getRedisAddr() string {
+	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
+		return addr
+	}
+	return "localhost:6379"
+}
 
 // ValidateCPFWithCache validates the CPF and uses cache to avoid duplicate validations.
 func ValidateCPFWithCache(cpf string) (bool, string, string, bool) {
-	cachedResult, err := rdb.Get(ctx, cpf).Result()
+	sanitizedCPF := nonDigitsRegex.ReplaceAllString(cpf, "")
+	cacheKey := "cpf:" + sanitizedCPF
+
+	cachedResult, err := rdb.Get(ctx, cacheKey).Result()
 	if err == nil {
 		isValid := cachedResult == "true"
 		message := "Valid CPF format"
 		if !isValid {
 			message = "Invalid CPF format"
 		}
-		return isValid, cpf, message, true
+		return isValid, sanitizedCPF, message, true
 	}
 
 	isValid, sanitizedCPF, message := ValidateCPF(cpf)
@@ -35,7 +54,7 @@ func ValidateCPFWithCache(cpf string) (bool, string, string, bool) {
 	if isValid {
 		cacheValue = "true"
 	}
-	err = rdb.Set(ctx, cpf, cacheValue, 24*time.Hour).Err()
+	err = rdb.Set(ctx, cacheKey, cacheValue, 24*time.Hour).Err()
 	if err != nil {
 		fmt.Println("Error saving to cache:", err)
 	}
@@ -45,8 +64,7 @@ func ValidateCPFWithCache(cpf string) (bool, string, string, bool) {
 
 // ValidateCPF checks the format of a CPF number.
 func ValidateCPF(cpf string) (bool, string, string) {
-	re := regexp.MustCompile(`\D`)
-	sanitizedCPF := re.ReplaceAllString(cpf, "")
+	sanitizedCPF := nonDigitsRegex.ReplaceAllString(cpf, "")
 	if len(sanitizedCPF) != 11 || !isValidCPF(sanitizedCPF) {
 		return false, sanitizedCPF, "Invalid CPF format"
 	}
@@ -80,19 +98,18 @@ func isValidCPF(cpf string) bool {
 	return true
 }
 
-// ValidateEmail validates if the email format is correct
+// ValidateEmail validates if the email format is correct.
 func ValidateEmail(email string) (bool, string, string) {
-	re := regexp.MustCompile(`^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$`)
-	if re.MatchString(email) {
-		return true, email, "Valid email format"
+	sanitizedEmail := strings.TrimSpace(strings.ToLower(email))
+	if emailRegex.MatchString(sanitizedEmail) {
+		return true, sanitizedEmail, "Valid email format"
 	}
-	return false, email, "Invalid email format"
+	return false, sanitizedEmail, "Invalid email format"
 }
 
 // ValidateRG validates the format of a Brazilian RG (Registro Geral).
 func ValidateRG(rg string) (bool, string, string) {
-	re := regexp.MustCompile(`\D`)
-	sanitizedRG := re.ReplaceAllString(rg, "")
+	sanitizedRG := nonDigitsRegex.ReplaceAllString(rg, "")
 
 	if len(sanitizedRG) < 7 || len(sanitizedRG) > 9 {
 		return false, sanitizedRG, "Invalid RG format (incorrect length)"
@@ -103,26 +120,27 @@ func ValidateRG(rg string) (bool, string, string) {
 
 // ValidateCEP validates a Brazilian postal code (CEP).
 func ValidateCEP(cep string) (bool, string, string) {
-	re := regexp.MustCompile(`\D`)
-	sanitizedCEP := re.ReplaceAllString(cep, "")
+	sanitizedCEP := nonDigitsRegex.ReplaceAllString(cep, "")
 
 	if len(sanitizedCEP) != 8 {
 		return false, sanitizedCEP, "Invalid CEP format (incorrect length)"
 	}
 
+	if sanitizedCEP == "00000000" {
+		return false, sanitizedCEP, "Invalid CEP format"
+	}
+
 	return true, sanitizedCEP, "Valid CEP format"
 }
 
-// ValidateName sanitizes and validates the name format
+// ValidateName sanitizes and validates the name format.
 func ValidateName(name string) (bool, string, string) {
 	rawName := name
 	sanitizedName := removeAccents(name)
 
-	re := regexp.MustCompile(`[^a-zA-Z\s-']`)
-	sanitizedName = re.ReplaceAllString(sanitizedName, "")
-
-	sanitizedName = strings.TrimSpace(sanitizedName)
-	sanitizedName = strings.ToUpper(sanitizedName)
+	sanitizedName = nameRegex.ReplaceAllString(sanitizedName, "")
+	sanitizedName = strings.Join(strings.Fields(sanitizedName), " ")
+	sanitizedName = strings.ToUpper(strings.TrimSpace(sanitizedName))
 
 	if len(sanitizedName) < 3 {
 		return false, rawName, "Invalid name format (too short)"
@@ -138,50 +156,64 @@ func ValidateName(name string) (bool, string, string) {
 	return true, sanitizedName, "Valid name format"
 }
 
-// removeAccents removes accents from characters
+// removeAccents removes accents from characters.
 func removeAccents(input string) string {
+	decomposed := norm.NFD.String(input)
 	var output strings.Builder
-	for _, char := range input {
-		if unicode.IsLetter(char) {
-			decomposed := unicode.ToLower(char)
-			output.WriteRune(decomposed)
-		} else if unicode.IsSpace(char) {
-			output.WriteRune(char)
+	for _, char := range decomposed {
+		if unicode.Is(unicode.Mn, char) {
+			continue
 		}
+		output.WriteRune(char)
 	}
 	return output.String()
 }
 
-// ValidatePhone validates and sanitizes phone numbers
+// ValidatePhone validates and sanitizes Brazilian phone numbers.
 func ValidatePhone(phone string) (bool, string, string) {
-	re := regexp.MustCompile(`\D`)
-	sanitizedPhone := re.ReplaceAllString(phone, "")
-	if len(sanitizedPhone) == 11 || len(sanitizedPhone) == 10 {
-		return true, sanitizedPhone, "Valid phone format"
+	sanitizedPhone := nonDigitsRegex.ReplaceAllString(phone, "")
+
+	if strings.HasPrefix(sanitizedPhone, "55") && (len(sanitizedPhone) == 12 || len(sanitizedPhone) == 13) {
+		sanitizedPhone = sanitizedPhone[2:]
 	}
-	return false, phone, "Invalid phone format"
+
+	if len(sanitizedPhone) != 10 && len(sanitizedPhone) != 11 {
+		return false, sanitizedPhone, "Invalid phone format"
+	}
+
+	ddd := sanitizedPhone[:2]
+	if ddd < "11" || ddd > "99" {
+		return false, sanitizedPhone, "Invalid phone format (invalid DDD)"
+	}
+
+	if len(sanitizedPhone) == 11 && sanitizedPhone[2] != '9' {
+		return false, sanitizedPhone, "Invalid phone format (mobile numbers must start with 9)"
+	}
+
+	if len(sanitizedPhone) == 10 && sanitizedPhone[2] == '0' {
+		return false, sanitizedPhone, "Invalid phone format"
+	}
+
+	return true, sanitizedPhone, "Valid phone format"
 }
 
-// ValidatePlastic validates a credit card number using the Luhn Algorithm and determines its brand
+// ValidatePlastic validates a credit card number using the Luhn Algorithm and determines its brand.
 func ValidatePlastic(cardNumber string) (bool, string, string) {
-	re := regexp.MustCompile(`\D`)
-	sanitizedCardNumber := re.ReplaceAllString(cardNumber, "")
+	sanitizedCardNumber := nonDigitsRegex.ReplaceAllString(cardNumber, "")
 
 	if len(sanitizedCardNumber) < 13 || len(sanitizedCardNumber) > 19 {
 		return false, sanitizedCardNumber, "Invalid credit card number (incorrect length)"
 	}
 
-	// Check validity using the Luhn Algorithm
 	if !isValidLuhn(sanitizedCardNumber) {
 		return false, sanitizedCardNumber, "Invalid credit card number"
 	}
 
-	// Get the card brand
 	brand := GetCardBrand(sanitizedCardNumber)
 	return true, sanitizedCardNumber, "Valid credit card number (" + brand + ")"
 }
 
-// GetCardBrand identifies the card brand based on the BIN
+// GetCardBrand identifies the card brand based on the BIN.
 func GetCardBrand(cardNumber string) string {
 	cardNumber = strings.ReplaceAll(cardNumber, " ", "") // Remove spaces
 
@@ -211,12 +243,11 @@ func GetCardBrand(cardNumber string) string {
 	return "Unknown"
 }
 
-// isValidLuhn implements the Luhn Algorithm to verify credit card numbers
+// isValidLuhn implements the Luhn Algorithm to verify credit card numbers.
 func isValidLuhn(cardNumber string) bool {
 	var sum int
 	alt := false
 
-	// Iterate over the card digits from back to front
 	for i := len(cardNumber) - 1; i >= 0; i-- {
 		n := int(cardNumber[i] - '0')
 		if alt {

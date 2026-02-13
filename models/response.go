@@ -4,6 +4,7 @@ import "time"
 
 type ValidationResponse struct {
 	StatusCode        int                    `json:"status_code"`
+	ErrorCode         string                 `json:"error_code,omitempty"`
 	ParameterKey      string                 `json:"parameter_key"`
 	RawParameterValue string                 `json:"raw_parameter_value"`
 	ParameterValue    string                 `json:"parameter_value"`
