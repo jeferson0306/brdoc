@@ -2,7 +2,7 @@ Data Validator API
 
 ![Data Validator API - Thumbnail](assets/api-validation-thumbnail.png)
 
-> Thumbnail para portfolio Upwork — API de validação de dados (email, CPF, telefone, etc.)
+> Upwork portfolio thumbnail — Data validation API (email, CPF, phone, etc.)
 
 The Data Validator API is a service designed to validate common data inputs, such as email, CPF, name, phone number, RG, CEP, and credit card number. It supports flexible input formats, sanitizes data to ensure consistency, and returns structured JSON responses.
 
