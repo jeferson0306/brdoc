@@ -1,0 +1,76 @@
+definitions:
+  models.ValidationResponse:
+    properties:
+      execution_time_ms:
+        type: integer
+      from_cache:
+        type: boolean
+      is_valid:
+        type: boolean
+      location_data:
+        additionalProperties: true
+        type: object
+      message:
+        type: string
+      parameter_key:
+        type: string
+      parameter_value:
+        type: string
+      raw_parameter_value:
+        type: string
+      request_id:
+        type: string
+      status_code:
+        type: integer
+      timestamp:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /validate:
+    get:
+      description: Validates different types of data, including email, CPF, name,
+        phone, RG, CEP, and credit card number
+      parameters:
+      - description: Email to be validated
+        in: query
+        name: email
+        type: string
+      - description: CPF to be validated
+        in: query
+        name: cpf
+        type: string
+      - description: Name to be validated
+        in: query
+        name: name
+        type: string
+      - description: Phone number to be validated
+        in: query
+        name: telephone
+        type: string
+      - description: Credit card number to be validated
+        in: query
+        name: plastic
+        type: string
+      - description: RG to be validated
+        in: query
+        name: rg
+        type: string
+      - description: CEP (postal code) to be validated
+        in: query
+        name: cep
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ValidationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ValidationResponse'
+      summary: Validates provided data format
+      tags:
+      - Validation
+swagger: "2.0"
