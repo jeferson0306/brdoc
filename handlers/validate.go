@@ -1,9 +1,10 @@
 package handlers
 
 import (
-	"DataValidatorAPI/models"
-	"DataValidatorAPI/utils"
 	"encoding/json"
+	"github.com/jeferson0306/api-data-validator/internal/cache"
+	"github.com/jeferson0306/api-data-validator/models"
+	"github.com/jeferson0306/api-data-validator/validate"
 	"net/http"
 	"strings"
 	"time"
@@ -72,8 +73,19 @@ func ValidateHandler(w http.ResponseWriter, r *http.Request) {
 
 	// The qualifier is only read for the validations that take one; passing it
 	// unconditionally keeps this loop from growing a special case per document.
-	outcome, _ := utils.Validate(key, value, r.URL.Query().Get("uf"))
-	response = createResponse(key, value, outcome.Sanitized, outcome.Valid, outcome.Message, start, outcome.FromCache)
+	// CPF is the one check routed through the cache, because from_cache is part
+	// of the published response. Everything else goes straight to the library.
+	var (
+		result    validate.Result
+		fromCache bool
+	)
+	if key == "cpf" {
+		result, fromCache = cache.CPF(value)
+	} else {
+		result, _ = validate.ByKey(key, value, r.URL.Query().Get("uf"))
+	}
+
+	response = createResponse(key, value, result.Normalized, result.Valid, result.Reason, start, fromCache)
 
 	writeResponse(w, response)
 }
@@ -82,7 +94,7 @@ func ValidateHandler(w http.ResponseWriter, r *http.Request) {
 // utils.ValidationKeys documents. "phone" remains an accepted alias for
 // "telephone" because it was published that way.
 func firstProvided(r *http.Request) (string, string) {
-	for _, key := range utils.ValidationKeys {
+	for _, key := range validate.Keys() {
 		value := r.URL.Query().Get(key)
 		if key == "telephone" {
 			value = firstNonEmpty(value, r.URL.Query().Get("phone"))
@@ -97,7 +109,7 @@ func firstProvided(r *http.Request) (string, string) {
 func validationCount(r *http.Request) int {
 	count := 0
 
-	for _, key := range utils.ValidationKeys {
+	for _, key := range validate.Keys() {
 		value := r.URL.Query().Get(key)
 		if key == "telephone" {
 			value = firstNonEmpty(value, r.URL.Query().Get("phone"))

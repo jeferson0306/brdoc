@@ -4,71 +4,103 @@ Data Validator API
 
 > Upwork portfolio thumbnail — Data validation API (email, CPF, phone, etc.)
 
-The Data Validator API is a service designed to validate common data inputs, such as email, CPF, name, phone number, RG, CEP, and credit card number. It supports flexible input formats, sanitizes data to ensure consistency, and returns structured JSON responses.
 
-Features
+A Go library for validating Brazilian documents, and an HTTP service built on it.
 
-- Email Validation: Verifies email format and normalizes case.
-- CPF Validation: Checks Brazilian CPF validity (including check digits) and caches result in Redis.
-- Name Validation: Removes accents, strips invalid chars, normalizes spaces, and converts to uppercase.
-- Phone Validation: Validates Brazilian phone numbers with DDD and mobile rules.
-- RG Validation: Validates basic Brazilian RG format.
-- CEP Validation: Validates CEP length and basic invalid values.
-- Credit Card Validation: Uses Luhn algorithm and identifies card brand.
+```bash
+go get github.com/jeferson0306/api-data-validator/validate
+```
 
-API Endpoint
+```go
+result := validate.CPF("529.982.247-25")
+result.Valid      // true
+result.Normalized // "52998224725"
+```
 
-GET /validate
+The library is pure: no network, no cache, no configuration, no state. Importing
+it opens no connections and reads no environment. Validation is arithmetic, and
+arithmetic that needs a server is arithmetic you cannot trust when the server is
+down.
 
-This endpoint receives query parameters and validates exactly one parameter at a time.
+Values are **checked, not laundered**. Formatting a person legitimately types —
+dots, dashes, spaces, the slash in a CNPJ — is accepted and removed. Anything
+else is a rejection. Stripping unexpected characters and validating what remains
+accepts `abc529.982.247-25` as a CPF, which is how a validator ends up letting
+junk into a database.
 
-Query Parameters
+## What it checks
 
-- email (optional) - Email address to validate.
-- cpf (optional) - Brazilian CPF number to validate, accepts different formats.
-- name (optional) - Name to validate and sanitize.
-- telephone (optional) - Phone number to validate.
-- phone (optional) - Alias for `telephone`.
-- plastic (optional) - Credit card number to validate.
-- rg (optional) - Brazilian RG to validate.
-- cep (optional) - CEP (postal code) to validate.
+| | |
+|---|---|
+| People | CPF, PIS/PASEP/NIT/NIS, RG, título de eleitor, CNH, full name |
+| Companies | CNPJ, inscrição estadual (**all 27 states**) |
+| Either | `documento` — whichever of CPF or CNPJ the digits describe |
+| Vehicles | RENAVAM, plate (pre-Mercosul and Mercosul) |
+| Money | PIX key (all five forms), card number with brand, boleto linha digitável |
+| Contact | email, phone, CEP |
 
-Status Codes
+Every algorithm was checked against a published reference or the issuing state's
+own worked example before it shipped. Two of them disagree with the reference
+implementation they were compared against, in both cases because the reference
+is wrong — see `validate/inscricao_estadual_test.go`.
 
-- 200: Valid value.
-- 400: Missing parameter or multiple parameters sent.
-- 422: Parameter provided but failed validation.
+## Command line
 
-Response Format
+```bash
+go install github.com/jeferson0306/api-data-validator/cmd/brdoc@latest
 
-The API returns a JSON object with the validation result:
+brdoc cpf 529.982.247-25 && echo accepted
+brdoc ie 0100482300112 AC
+brdoc --json cnpj 33.000.167/0001-01 | jq .normalized
+brdoc list
+```
 
-- status_code: HTTP status code.
-- error_code: Optional machine-readable error code.
-- parameter_key: Input parameter key.
-- raw_parameter_value: Original input.
-- parameter_value: Sanitized value.
-- is_valid: Whether the value is valid.
-- message: Human-readable message.
-- request_id: Unique request identifier.
-- timestamp: Request timestamp.
-- execution_time_ms: Processing time.
-- from_cache: Whether result came from cache (CPF only).
+Exit status is 0 for valid, 1 for invalid and 2 for a usage error, so it
+composes with everything else a shell can do.
 
-Examples
+## HTTP service
 
-- Valid email
-  - Request: `GET /validate?email=USER@Test.COM`
-  - Response: `200` with `parameter_value: "user@test.com"` and `is_valid: true`.
+```
+GET  /validate?cpf=529.982.247-25
+GET  /validate?ie=0100482300112&uf=AC
+POST /validate/batch     one form, one request
+GET  /health
+GET  /swagger/index.html
+```
 
-- Invalid CPF
-  - Request: `GET /validate?cpf=111.111.111-11`
-  - Response: `422` with `error_code: "VALIDATION_FAILED"` and `is_valid: false`.
+`POST /validate/batch` takes a list of items, each with its own type, and
+answers one result per item plus a summary. A form with eight fields is one
+request rather than eight.
 
-- Valid phone using alias
-  - Request: `GET /validate?phone=+55 (11) 91234-5678`
-  - Response: `200` with `parameter_key: "telephone"` and `parameter_value: "11912345678"`.
+## Performance
 
-- Multiple parameters (not allowed)
-  - Request: `GET /validate?email=a@a.com&cpf=52998224725`
-  - Response: `400` with `error_code: "MULTIPLE_PARAMETERS"`.
+```
+BenchmarkCPF-12                  522 ns/op
+BenchmarkCNPJ-12                 499 ns/op
+BenchmarkBoleto-12               864 ns/op
+BenchmarkStateRegistration-12    248 ns/op
+```
+
+Worth knowing before reaching for a cache: a CPF check costs about half a
+microsecond, against a Redis round trip measured at 150–220 ms in production.
+The cache is opt-in through `REDIS_ADDR` and off by default.
+
+## Layout
+
+```
+validate/        the library — pure, importable, no dependencies beyond x/text
+internal/cache/  the service's optional CPF cache, kept out of the library
+handlers/        HTTP handlers
+middleware/      CORS
+observability/   request logging that never records the value being validated
+cmd/brdoc/       the command line tool
+main.go          the service
+```
+
+## Development
+
+```bash
+go test ./... -race
+go test ./validate -bench .
+go run ./cmd/brdoc cpf 529.982.247-25
+```

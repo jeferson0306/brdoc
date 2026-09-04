@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"DataValidatorAPI/docs"
-	"DataValidatorAPI/handlers"
-	"DataValidatorAPI/middleware"
-	"DataValidatorAPI/observability"
+	"github.com/jeferson0306/api-data-validator/docs"
+	"github.com/jeferson0306/api-data-validator/handlers"
+	"github.com/jeferson0306/api-data-validator/middleware"
+	"github.com/jeferson0306/api-data-validator/observability"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"

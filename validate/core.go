@@ -1,25 +1,12 @@
-package utils
+package validate
 
 import (
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"log/slog"
-	"os"
 	"regexp"
 	"strings"
-	"time"
 	"unicode"
 
-	"github.com/go-redis/redis/v8"
 	"golang.org/x/text/unicode/norm"
 )
-
-// cacheTimeout bounds every Redis call. Without it a hung or unreachable cache
-// blocks the request for as long as the client is willing to wait — validation
-// itself takes microseconds, so anything slower than this is not worth waiting
-// for and the answer is recomputed instead.
-const cacheTimeout = 150 * time.Millisecond
 
 var (
 	nonDigitsRegex = regexp.MustCompile(`\D`)
@@ -47,81 +34,8 @@ var (
 	nameChars  = regexp.MustCompile(`^[\p{L}\s\-'.]*$`)
 )
 
-// Initialize Redis client
-var rdb = redis.NewClient(&redis.Options{
-	Addr: getRedisAddr(),
-})
-
-// CacheHealthy reports whether Redis is actually reachable, so /health can say
-// so instead of the service degrading silently — which is how a broken cache
-// went unnoticed in production.
-func CacheHealthy() bool {
-	ctx, cancel := context.WithTimeout(context.Background(), cacheTimeout)
-	defer cancel()
-	return rdb.Ping(ctx).Err() == nil
-}
-
-func getRedisAddr() string {
-	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
-		return addr
-	}
-	return "localhost:6379"
-}
-
-// cacheKeyFor hashes the value before it becomes a Redis key.
-//
-// The key used to be "cpf:<the actual CPF>", which put every CPF ever validated
-// into the cache in the clear, readable by anyone with access to it. A SHA-256
-// digest keys just as well — equal inputs still collide onto one entry — while
-// storing nothing that identifies a person.
-func cacheKeyFor(prefix, value string) string {
-	digest := sha256.Sum256([]byte(value))
-	return prefix + ":" + hex.EncodeToString(digest[:])
-}
-
-// ValidateCPFWithCache validates the CPF and uses cache to avoid duplicate validations.
-func ValidateCPFWithCache(cpf string) (bool, string, string, bool) {
-	// Before the cache, not after: the key is built from the extracted digits, so
-	// "abc529.982.247-25" and "529.982.247-25" would otherwise share an entry and
-	// the dirty value would inherit the clean one's cached "true".
-	if !cpfChars.MatchString(cpf) {
-		return false, cpf, "Invalid CPF format (unexpected characters)", false
-	}
-
-	sanitizedCPF := nonDigitsRegex.ReplaceAllString(cpf, "")
-	cacheKey := cacheKeyFor("cpf", sanitizedCPF)
-
-	ctx, cancel := context.WithTimeout(context.Background(), cacheTimeout)
-	defer cancel()
-
-	cachedResult, err := rdb.Get(ctx, cacheKey).Result()
-	if err == nil {
-		isValid := cachedResult == "true"
-		message := "Valid CPF format"
-		if !isValid {
-			message = "Invalid CPF format"
-		}
-		return isValid, sanitizedCPF, message, true
-	}
-
-	isValid, sanitizedCPF, message := ValidateCPF(cpf)
-
-	cacheValue := "false"
-	if isValid {
-		cacheValue = "true"
-	}
-	if err := rdb.Set(ctx, cacheKey, cacheValue, 24*time.Hour).Err(); err != nil {
-		// Debug, not error: a missing cache is a degraded mode, not a failure,
-		// and at info level a down Redis would drown the log at request rate.
-		// CacheHealthy() is what surfaces the condition.
-		slog.Debug("cache write failed", slog.String("error", err.Error()))
-	}
-
-	return isValid, sanitizedCPF, message, false
-}
-
-// ValidateCPF checks the format of a CPF number.
-func ValidateCPF(cpf string) (bool, string, string) {
+// checkCPF checks the format of a CPF number.
+func checkCPF(cpf string) (bool, string, string) {
 	if !cpfChars.MatchString(cpf) {
 		return false, cpf, "Invalid CPF format (unexpected characters)"
 	}
@@ -160,12 +74,12 @@ func isValidCPF(cpf string) bool {
 	return true
 }
 
-// ValidateCNPJ checks the format and both check digits of a CNPJ.
+// checkCNPJ checks the format and both check digits of a CNPJ.
 //
 // Ported from the shared TypeScript validators so the two cannot disagree; the
 // weights and the "remainder below 2 means zero" rule come from the Receita
 // Federal specification.
-func ValidateCNPJ(cnpj string) (bool, string, string) {
+func checkCNPJ(cnpj string) (bool, string, string) {
 	if !cnpjChars.MatchString(cnpj) {
 		return false, cnpj, "Invalid CNPJ format (unexpected characters)"
 	}
@@ -192,8 +106,8 @@ func ValidateCNPJ(cnpj string) (bool, string, string) {
 	return true, sanitizedCNPJ, "Valid CNPJ format"
 }
 
-// ValidateEmail validates if the email format is correct.
-func ValidateEmail(email string) (bool, string, string) {
+// checkEmail validates if the email format is correct.
+func checkEmail(email string) (bool, string, string) {
 	sanitizedEmail := strings.TrimSpace(strings.ToLower(email))
 	if emailRegex.MatchString(sanitizedEmail) {
 		return true, sanitizedEmail, "Valid email format"
@@ -201,8 +115,8 @@ func ValidateEmail(email string) (bool, string, string) {
 	return false, sanitizedEmail, "Invalid email format"
 }
 
-// ValidateRG validates the format of a Brazilian RG (Registro Geral).
-func ValidateRG(rg string) (bool, string, string) {
+// checkRG validates the format of a Brazilian RG (Registro Geral).
+func checkRG(rg string) (bool, string, string) {
 	if !rgChars.MatchString(rg) {
 		return false, rg, "Invalid RG format (unexpected characters)"
 	}
@@ -216,8 +130,8 @@ func ValidateRG(rg string) (bool, string, string) {
 	return true, sanitizedRG, "Valid RG format"
 }
 
-// ValidateCEP validates a Brazilian postal code (CEP).
-func ValidateCEP(cep string) (bool, string, string) {
+// checkCEP validates a Brazilian postal code (CEP).
+func checkCEP(cep string) (bool, string, string) {
 	if !cepChars.MatchString(cep) {
 		return false, cep, "Invalid CEP format (unexpected characters)"
 	}
@@ -235,8 +149,8 @@ func ValidateCEP(cep string) (bool, string, string) {
 	return true, sanitizedCEP, "Valid CEP format"
 }
 
-// ValidateName sanitizes and validates the name format.
-func ValidateName(name string) (bool, string, string) {
+// checkName sanitizes and validates the name format.
+func checkName(name string) (bool, string, string) {
 	rawName := name
 	if !nameChars.MatchString(name) {
 		return false, rawName, "Invalid name format (unexpected characters)"
@@ -275,8 +189,8 @@ func removeAccents(input string) string {
 	return output.String()
 }
 
-// ValidatePhone validates and sanitizes Brazilian phone numbers.
-func ValidatePhone(phone string) (bool, string, string) {
+// checkPhone validates and sanitizes Brazilian phone numbers.
+func checkPhone(phone string) (bool, string, string) {
 	if !phoneChars.MatchString(phone) {
 		return false, phone, "Invalid phone format (unexpected characters)"
 	}
@@ -307,8 +221,8 @@ func ValidatePhone(phone string) (bool, string, string) {
 	return true, sanitizedPhone, "Valid phone format"
 }
 
-// ValidatePlastic validates a credit card number using the Luhn Algorithm and determines its brand.
-func ValidatePlastic(cardNumber string) (bool, string, string) {
+// checkPlastic validates a credit card number using the Luhn Algorithm and determines its brand.
+func checkPlastic(cardNumber string) (bool, string, string) {
 	if !cardChars.MatchString(cardNumber) {
 		return false, cardNumber, "Invalid credit card number (unexpected characters)"
 	}
@@ -323,12 +237,12 @@ func ValidatePlastic(cardNumber string) (bool, string, string) {
 		return false, sanitizedCardNumber, "Invalid credit card number"
 	}
 
-	brand := GetCardBrand(sanitizedCardNumber)
+	brand := cardBrandOf(sanitizedCardNumber)
 	return true, sanitizedCardNumber, "Valid credit card number (" + brand + ")"
 }
 
-// GetCardBrand identifies the card brand based on the BIN.
-func GetCardBrand(cardNumber string) string {
+// cardBrandOf identifies the card brand based on the BIN.
+func cardBrandOf(cardNumber string) string {
 	cardNumber = strings.ReplaceAll(cardNumber, " ", "") // Remove spaces
 
 	if len(cardNumber) >= 2 {

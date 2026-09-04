@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import "testing"
 
@@ -16,7 +16,7 @@ func TestValidateEmail(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isValid, sanitized, _ := ValidateEmail(tt.email)
+			isValid, sanitized, _ := checkEmail(tt.email)
 			if isValid != tt.valid {
 				t.Fatalf("expected %v, got %v", tt.valid, isValid)
 			}
@@ -43,7 +43,7 @@ func TestValidatePhone(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isValid, sanitized, _ := ValidatePhone(tt.phone)
+			isValid, sanitized, _ := checkPhone(tt.phone)
 			if isValid != tt.valid {
 				t.Fatalf("expected %v, got %v", tt.valid, isValid)
 			}
@@ -55,7 +55,7 @@ func TestValidatePhone(t *testing.T) {
 }
 
 func TestValidateName(t *testing.T) {
-	isValid, sanitized, _ := ValidateName("  João   da   Silva ")
+	isValid, sanitized, _ := checkName("  João   da   Silva ")
 	if !isValid {
 		t.Fatal("expected valid name")
 	}
@@ -65,19 +65,19 @@ func TestValidateName(t *testing.T) {
 }
 
 func TestValidateCPF(t *testing.T) {
-	valid, _, _ := ValidateCPF("529.982.247-25")
+	valid, _, _ := checkCPF("529.982.247-25")
 	if !valid {
 		t.Fatal("expected valid cpf")
 	}
 
-	invalid, _, _ := ValidateCPF("111.111.111-11")
+	invalid, _, _ := checkCPF("111.111.111-11")
 	if invalid {
 		t.Fatal("expected invalid cpf")
 	}
 }
 
 func TestValidateCEP(t *testing.T) {
-	valid, sanitized, _ := ValidateCEP("01310-100")
+	valid, sanitized, _ := checkCEP("01310-100")
 	if !valid {
 		t.Fatal("expected valid cep")
 	}
@@ -85,7 +85,7 @@ func TestValidateCEP(t *testing.T) {
 		t.Fatalf("expected sanitized 01310100, got %q", sanitized)
 	}
 
-	invalid, _, _ := ValidateCEP("00000-000")
+	invalid, _, _ := checkCEP("00000-000")
 	if invalid {
 		t.Fatal("expected invalid cep for all zeroes")
 	}
@@ -99,14 +99,14 @@ func TestStrayCharactersAreRejected(t *testing.T) {
 		name  string
 		check func() (bool, string, string)
 	}{
-		{"cpf_trailing_letters", func() (bool, string, string) { return ValidateCPF("529.982.247-25jasasas") }},
-		{"cpf_leading_letters", func() (bool, string, string) { return ValidateCPF("abc529.982.247-25") }},
-		{"cpf_foreign_symbol", func() (bool, string, string) { return ValidateCPF("529.982.247-25/") }},
-		{"rg_trailing_letters", func() (bool, string, string) { return ValidateRG("12.345.678abc") }},
-		{"cep_trailing_letters", func() (bool, string, string) { return ValidateCEP("70040-010abc") }},
-		{"phone_trailing_letters", func() (bool, string, string) { return ValidatePhone("(11) 98765-4321abc") }},
-		{"card_trailing_letters", func() (bool, string, string) { return ValidatePlastic("4111111111111111zz") }},
-		{"name_with_digits", func() (bool, string, string) { return ValidateName("Jeferson123 Siqueira") }},
+		{"cpf_trailing_letters", func() (bool, string, string) { return checkCPF("529.982.247-25jasasas") }},
+		{"cpf_leading_letters", func() (bool, string, string) { return checkCPF("abc529.982.247-25") }},
+		{"cpf_foreign_symbol", func() (bool, string, string) { return checkCPF("529.982.247-25/") }},
+		{"rg_trailing_letters", func() (bool, string, string) { return checkRG("12.345.678abc") }},
+		{"cep_trailing_letters", func() (bool, string, string) { return checkCEP("70040-010abc") }},
+		{"phone_trailing_letters", func() (bool, string, string) { return checkPhone("(11) 98765-4321abc") }},
+		{"card_trailing_letters", func() (bool, string, string) { return checkPlastic("4111111111111111zz") }},
+		{"name_with_digits", func() (bool, string, string) { return checkName("Jeferson123 Siqueira") }},
 	}
 
 	for _, tt := range tests {
@@ -125,15 +125,15 @@ func TestLegitimateFormattingStillPasses(t *testing.T) {
 		name  string
 		check func() (bool, string, string)
 	}{
-		{"cpf_dotted", func() (bool, string, string) { return ValidateCPF("529.982.247-25") }},
-		{"cpf_spaced", func() (bool, string, string) { return ValidateCPF("529 982 247 25") }},
-		{"cpf_bare", func() (bool, string, string) { return ValidateCPF("52998224725") }},
-		{"rg_dotted", func() (bool, string, string) { return ValidateRG("12.345.678") }},
-		{"cep_dashed", func() (bool, string, string) { return ValidateCEP("70040-010") }},
-		{"phone_parenthesised", func() (bool, string, string) { return ValidatePhone("(11) 98765-4321") }},
-		{"phone_country_code", func() (bool, string, string) { return ValidatePhone("+55 11 98765-4321") }},
-		{"card_spaced", func() (bool, string, string) { return ValidatePlastic("4111 1111 1111 1111") }},
-		{"name_accented", func() (bool, string, string) { return ValidateName("Jeférson D'Ávila Siqueira") }},
+		{"cpf_dotted", func() (bool, string, string) { return checkCPF("529.982.247-25") }},
+		{"cpf_spaced", func() (bool, string, string) { return checkCPF("529 982 247 25") }},
+		{"cpf_bare", func() (bool, string, string) { return checkCPF("52998224725") }},
+		{"rg_dotted", func() (bool, string, string) { return checkRG("12.345.678") }},
+		{"cep_dashed", func() (bool, string, string) { return checkCEP("70040-010") }},
+		{"phone_parenthesised", func() (bool, string, string) { return checkPhone("(11) 98765-4321") }},
+		{"phone_country_code", func() (bool, string, string) { return checkPhone("+55 11 98765-4321") }},
+		{"card_spaced", func() (bool, string, string) { return checkPlastic("4111 1111 1111 1111") }},
+		{"name_accented", func() (bool, string, string) { return checkName("Jeférson D'Ávila Siqueira") }},
 	}
 
 	for _, tt := range tests {
@@ -149,7 +149,7 @@ func TestLegitimateFormattingStillPasses(t *testing.T) {
 // A rejected value is echoed back untouched: it was never accepted, so
 // presenting a "sanitised" version of it would be misleading.
 func TestRejectedValueIsEchoedRaw(t *testing.T) {
-	_, value, _ := ValidateCPF("abc529.982.247-25")
+	_, value, _ := checkCPF("abc529.982.247-25")
 	if value != "abc529.982.247-25" {
 		t.Fatalf("expected the raw input back, got %q", value)
 	}

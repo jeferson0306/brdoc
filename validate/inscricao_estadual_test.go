@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import "testing"
 
@@ -34,7 +34,7 @@ func TestInscricaoEstadualOfficialExamples(t *testing.T) {
 
 	for uf, ie := range official {
 		t.Run(uf, func(t *testing.T) {
-			isValid, _, message := ValidateInscricaoEstadual(ie, uf)
+			isValid, _, message := checkInscricaoEstadual(ie, uf)
 			if !isValid {
 				t.Fatalf("%s rejected its own published example %s: %s", uf, ie, message)
 			}
@@ -47,7 +47,7 @@ func TestInscricaoEstadualOfficialExamples(t *testing.T) {
 // was checked against gets wrong, which is why it is called out separately.
 func TestInscricaoEstadualBahiaBothLengths(t *testing.T) {
 	for _, ie := range []string{"12345663", "100000306"} {
-		if isValid, _, message := ValidateInscricaoEstadual(ie, "BA"); !isValid {
+		if isValid, _, message := checkInscricaoEstadual(ie, "BA"); !isValid {
 			t.Fatalf("BA rejected its published example %s: %s", ie, message)
 		}
 	}
@@ -70,7 +70,7 @@ func TestInscricaoEstadualRejections(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if isValid, _, message := ValidateInscricaoEstadual(tt.ie, tt.uf); isValid {
+			if isValid, _, message := checkInscricaoEstadual(tt.ie, tt.uf); isValid {
 				t.Fatalf("expected rejection, got valid (%s)", message)
 			}
 		})
@@ -81,14 +81,14 @@ func TestInscricaoEstadualExempt(t *testing.T) {
 	// A business can be registered and exempt from holding a number; a
 	// validator that rejected "ISENTO" would be rejecting a legal answer.
 	for _, value := range []string{"ISENTO", "isento", "  Isento  "} {
-		if isValid, sanitized, _ := ValidateInscricaoEstadual(value, "SP"); !isValid || sanitized != "ISENTO" {
+		if isValid, sanitized, _ := checkInscricaoEstadual(value, "SP"); !isValid || sanitized != "ISENTO" {
 			t.Fatalf("expected %q to be accepted as exempt, got valid=%v value=%q", value, isValid, sanitized)
 		}
 	}
 }
 
 func TestSupportedStatesCoverTheFederation(t *testing.T) {
-	if got := len(SupportedIEStates()); got != 27 {
-		t.Fatalf("expected all 27 states, got %d: %v", got, SupportedIEStates())
+	if got := len(supportedStates()); got != 27 {
+		t.Fatalf("expected all 27 states, got %d: %v", got, supportedStates())
 	}
 }

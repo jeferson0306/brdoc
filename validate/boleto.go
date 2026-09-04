@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import "regexp"
 
@@ -29,8 +29,8 @@ var barcodeOrder = [][2]int{{0, 4}, {32, 47}, {4, 9}, {10, 20}, {21, 31}}
 // barcode is reassembled — inside it, not at the end.
 const barcodeCheckDigitPosition = 4
 
-// ValidateBoleto checks the 47-digit linha digitável of a bank slip.
-func ValidateBoleto(boleto string) (bool, string, string) {
+// checkBoleto checks the 47-digit linha digitável of a bank slip.
+func checkBoleto(boleto string) (bool, string, string) {
 	if !boletoChars.MatchString(boleto) {
 		return false, boleto, "Invalid boleto (unexpected characters)"
 	}

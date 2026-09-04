@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import (
 	"regexp"
@@ -24,11 +24,11 @@ var (
 	pixPhone = regexp.MustCompile(`^\+55\d{10,11}$`)
 )
 
-// ValidatePIS checks a PIS/PASEP/NIT/NIS number.
+// checkPIS checks a PIS/PASEP/NIT/NIS number.
 //
 // All four names refer to the same eleven-digit number with the same check
 // digit, so one validator covers them; the API exposes it as "pis".
-func ValidatePIS(pis string) (bool, string, string) {
+func checkPIS(pis string) (bool, string, string) {
 	if !pisChars.MatchString(pis) {
 		return false, pis, "Invalid PIS format (unexpected characters)"
 	}
@@ -49,7 +49,7 @@ func ValidatePIS(pis string) (bool, string, string) {
 	return true, sanitized, "Valid PIS format"
 }
 
-// ValidateTituloEleitor checks a voter registration number.
+// checkTituloEleitor checks a voter registration number.
 //
 // The number is an eight-digit sequence, two digits identifying the issuing
 // state, and two check digits. Three details make it unlike the other
@@ -60,7 +60,7 @@ func ValidatePIS(pis string) (bool, string, string) {
 //     their numbers carry thirteen digits rather than twelve. The state code is
 //     therefore located from the end, never at a fixed offset.
 //   - For those same two states a remainder of zero yields 1, not 0.
-func ValidateTituloEleitor(titulo string) (bool, string, string) {
+func checkTituloEleitor(titulo string) (bool, string, string) {
 	if !tituloChars.MatchString(titulo) {
 		return false, titulo, "Invalid voter ID format (unexpected characters)"
 	}
@@ -113,9 +113,9 @@ func voterDigit(sum int, extendedState bool) int {
 	return remainder
 }
 
-// ValidatePlate checks a vehicle plate in either the old or the Mercosul
+// checkPlate checks a vehicle plate in either the old or the Mercosul
 // pattern. There is no check digit — a plate is a format, not a computation.
-func ValidatePlate(plate string) (bool, string, string) {
+func checkPlate(plate string) (bool, string, string) {
 	if !plateChars.MatchString(plate) {
 		return false, plate, "Invalid plate format (unexpected characters)"
 	}
@@ -132,22 +132,22 @@ func ValidatePlate(plate string) (bool, string, string) {
 	}
 }
 
-// ValidateDocument accepts whichever of CPF or CNPJ the digits describe.
+// checkDocument accepts whichever of CPF or CNPJ the digits describe.
 //
 // Forms routinely offer a single "document" field, and asking the caller to
 // decide which endpoint to call defeats the point of that field.
-func ValidateDocument(document string) (bool, string, string) {
+func checkDocument(document string) (bool, string, string) {
 	digits := nonDigitsRegex.ReplaceAllString(document, "")
 
 	switch len(digits) {
 	case 11:
-		isValid, sanitized, _ := ValidateCPF(document)
+		isValid, sanitized, _ := checkCPF(document)
 		if isValid {
 			return true, sanitized, "Valid document (CPF)"
 		}
 		return false, sanitized, "Invalid document (CPF check failed)"
 	case 14:
-		isValid, sanitized, _ := ValidateCNPJ(document)
+		isValid, sanitized, _ := checkCNPJ(document)
 		if isValid {
 			return true, sanitized, "Valid document (CNPJ)"
 		}
@@ -157,12 +157,12 @@ func ValidateDocument(document string) (bool, string, string) {
 	}
 }
 
-// ValidatePixKey checks a PIX key in any of the five forms the arrangement
+// checkPixKey checks a PIX key in any of the five forms the arrangement
 // defines: CPF, CNPJ, email, phone in E.164, or a random UUID.
 //
 // The form is inferred rather than asked for, because that is how a key arrives
 // — pasted into one field, with nothing saying which kind it is.
-func ValidatePixKey(key string) (bool, string, string) {
+func checkPixKey(key string) (bool, string, string) {
 	trimmed := strings.TrimSpace(key)
 	if trimmed == "" {
 		return false, key, "Invalid PIX key (empty)"
@@ -175,7 +175,7 @@ func ValidatePixKey(key string) (bool, string, string) {
 		return true, trimmed, "Valid PIX key (phone)"
 	}
 	if strings.Contains(trimmed, "@") {
-		if isValid, sanitized, _ := ValidateEmail(trimmed); isValid {
+		if isValid, sanitized, _ := checkEmail(trimmed); isValid {
 			return true, sanitized, "Valid PIX key (email)"
 		}
 		return false, trimmed, "Invalid PIX key (malformed email)"
@@ -184,12 +184,12 @@ func ValidatePixKey(key string) (bool, string, string) {
 	digits := nonDigitsRegex.ReplaceAllString(trimmed, "")
 	switch len(digits) {
 	case 11:
-		if isValid, sanitized, _ := ValidateCPF(trimmed); isValid {
+		if isValid, sanitized, _ := checkCPF(trimmed); isValid {
 			return true, sanitized, "Valid PIX key (CPF)"
 		}
 		return false, digits, "Invalid PIX key (CPF check failed)"
 	case 14:
-		if isValid, sanitized, _ := ValidateCNPJ(trimmed); isValid {
+		if isValid, sanitized, _ := checkCNPJ(trimmed); isValid {
 			return true, sanitized, "Valid PIX key (CNPJ)"
 		}
 		return false, digits, "Invalid PIX key (CNPJ check failed)"

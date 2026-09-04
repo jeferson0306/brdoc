@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import (
 	"math/rand"
@@ -79,7 +79,7 @@ func TestCNHAgreesWithReference(t *testing.T) {
 
 	for i := 0; i < 5000; i++ {
 		candidate := randomDigits(random, 11)
-		got, _, _ := ValidateCNH(candidate)
+		got, _, _ := checkCNH(candidate)
 
 		if want := referenceCNH(candidate); got != want {
 			t.Fatalf("CNH %s: got %v, reference says %v", candidate, got, want)
@@ -92,7 +92,7 @@ func TestRenavamAgreesWithReference(t *testing.T) {
 
 	for i := 0; i < 5000; i++ {
 		candidate := randomDigits(random, 11)
-		got, _, _ := ValidateRenavam(candidate)
+		got, _, _ := checkRenavam(candidate)
 
 		// The one deliberate deviation: a run of one repeated digit is not a
 		// registration, and this service rejects it where the reference does not.
@@ -137,7 +137,7 @@ func TestConstructedVehicleNumbersAreAccepted(t *testing.T) {
 		if allSameDigit(cnh) {
 			continue
 		}
-		if isValid, _, message := ValidateCNH(cnh); !isValid {
+		if isValid, _, message := checkCNH(cnh); !isValid {
 			t.Fatalf("constructed CNH %s was rejected: %s", cnh, message)
 		}
 	}
@@ -149,7 +149,7 @@ func TestConstructedVehicleNumbersAreAccepted(t *testing.T) {
 func TestConstructedBoletoIsAcceptedAndSensitiveToEveryDigit(t *testing.T) {
 	valid := "00190000090114971860168524522114675860000102656"
 
-	if isValid, _, message := ValidateBoleto(valid); !isValid {
+	if isValid, _, message := checkBoleto(valid); !isValid {
 		t.Fatalf("the published example was rejected: %s", message)
 	}
 
@@ -163,7 +163,7 @@ func TestConstructedBoletoIsAcceptedAndSensitiveToEveryDigit(t *testing.T) {
 			mutated[i]++
 		}
 
-		if isValid, _, _ := ValidateBoleto(string(mutated)); isValid {
+		if isValid, _, _ := checkBoleto(string(mutated)); isValid {
 			t.Fatalf("changing digit %d left the boleto valid: %s", i, string(mutated))
 		}
 	}

@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import "testing"
 
@@ -19,7 +19,7 @@ func TestValidateCNH(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.cnh, func(t *testing.T) {
-			isValid, _, message := ValidateCNH(tt.cnh)
+			isValid, _, message := checkCNH(tt.cnh)
 			if isValid != tt.valid {
 				t.Fatalf("expected valid=%v, got %v (%s)", tt.valid, isValid, message)
 			}
@@ -49,7 +49,7 @@ func TestValidateRenavam(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isValid, _, message := ValidateRenavam(tt.renavam)
+			isValid, _, message := checkRenavam(tt.renavam)
 			if isValid != tt.valid {
 				t.Fatalf("expected valid=%v, got %v (%s)", tt.valid, isValid, message)
 			}
@@ -60,8 +60,8 @@ func TestValidateRenavam(t *testing.T) {
 // The nine-digit form is the eleven-digit form with leading zeros, so both must
 // normalise to the same stored value.
 func TestRenavamNormalisesToElevenDigits(t *testing.T) {
-	_, short, _ := ValidateRenavam("639884962")
-	_, long, _ := ValidateRenavam("00639884962")
+	_, short, _ := checkRenavam("639884962")
+	_, long, _ := checkRenavam("00639884962")
 
 	if short != long || short != "00639884962" {
 		t.Fatalf("expected both forms to normalise to 00639884962, got %q and %q", short, long)
@@ -85,7 +85,7 @@ func TestValidateBoleto(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isValid, _, message := ValidateBoleto(tt.boleto)
+			isValid, _, message := checkBoleto(tt.boleto)
 			if isValid != tt.valid {
 				t.Fatalf("expected valid=%v, got %v (%s)", tt.valid, isValid, message)
 			}
@@ -99,7 +99,7 @@ func TestValidateBoleto(t *testing.T) {
 func TestBoletoArrecadacaoIsReportedAsUnchecked(t *testing.T) {
 	arrecadacao := "846700000017435900240200610207807116000000000000"
 
-	isValid, _, message := ValidateBoleto(arrecadacao)
+	isValid, _, message := checkBoleto(arrecadacao)
 	if isValid {
 		t.Fatal("a 48-digit slip must not be reported as valid")
 	}
