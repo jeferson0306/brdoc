@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +35,9 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(observability.RequestLogger(logger))
 	router.Use(middleware.CORS())
+	router.Use(middleware.RateLimit())
+
+	configureClientAddressing(router, logger)
 
 	router.GET("/health", handlers.HealthHandler)
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -71,6 +75,43 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Error("shutdown failed", slog.String("error", err.Error()))
 	}
+}
+
+// configureClientAddressing decides whose address the rate limiter counts.
+//
+// Behind a platform proxy the socket address belongs to the proxy, so without
+// configuration every caller shares one bucket and the limit becomes global.
+// The obvious fix — trusting X-Forwarded-For — is worse: on a public host that
+// header is written by whoever is calling, so a limit keyed on it is a limit
+// anyone can step around by changing a string.
+//
+// So it is explicit. TRUSTED_PLATFORM=cloudflare reads CF-Connecting-IP, which
+// Cloudflare overwrites on every request and a caller therefore cannot forge;
+// Render fronts services with Cloudflare, which is what makes this the right
+// setting there. TRUSTED_PROXIES takes CIDRs for anything else. Unset, nothing
+// is trusted: the limit is global, which is safe and honest rather than
+// silently forgeable.
+func configureClientAddressing(router *gin.Engine, logger *slog.Logger) {
+	if platform := strings.ToLower(os.Getenv("TRUSTED_PLATFORM")); platform == "cloudflare" {
+		router.TrustedPlatform = gin.PlatformCloudflare
+		logger.Info("client address taken from CF-Connecting-IP")
+		return
+	}
+
+	if proxies := os.Getenv("TRUSTED_PROXIES"); proxies != "" {
+		if err := router.SetTrustedProxies(strings.Split(proxies, ",")); err != nil {
+			logger.Error("invalid TRUSTED_PROXIES", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		logger.Info("client address taken from X-Forwarded-For", slog.String("trusted", proxies))
+		return
+	}
+
+	if err := router.SetTrustedProxies(nil); err != nil {
+		logger.Error("could not clear trusted proxies", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	logger.Warn("no trusted proxy configured; the rate limit applies to all callers together")
 }
 
 // port honours the value the platform assigns; Render sets PORT and would
