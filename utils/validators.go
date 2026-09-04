@@ -2,7 +2,9 @@ package utils
 
 import (
 	"context"
-	"fmt"
+	"crypto/sha256"
+	"encoding/hex"
+	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -13,7 +15,11 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-var ctx = context.Background()
+// cacheTimeout bounds every Redis call. Without it a hung or unreachable cache
+// blocks the request for as long as the client is willing to wait — validation
+// itself takes microseconds, so anything slower than this is not worth waiting
+// for and the answer is recomputed instead.
+const cacheTimeout = 150 * time.Millisecond
 
 var (
 	nonDigitsRegex = regexp.MustCompile(`\D`)
@@ -45,11 +51,31 @@ var rdb = redis.NewClient(&redis.Options{
 	Addr: getRedisAddr(),
 })
 
+// CacheHealthy reports whether Redis is actually reachable, so /health can say
+// so instead of the service degrading silently — which is how a broken cache
+// went unnoticed in production.
+func CacheHealthy() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), cacheTimeout)
+	defer cancel()
+	return rdb.Ping(ctx).Err() == nil
+}
+
 func getRedisAddr() string {
 	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
 		return addr
 	}
 	return "localhost:6379"
+}
+
+// cacheKeyFor hashes the value before it becomes a Redis key.
+//
+// The key used to be "cpf:<the actual CPF>", which put every CPF ever validated
+// into the cache in the clear, readable by anyone with access to it. A SHA-256
+// digest keys just as well — equal inputs still collide onto one entry — while
+// storing nothing that identifies a person.
+func cacheKeyFor(prefix, value string) string {
+	digest := sha256.Sum256([]byte(value))
+	return prefix + ":" + hex.EncodeToString(digest[:])
 }
 
 // ValidateCPFWithCache validates the CPF and uses cache to avoid duplicate validations.
@@ -62,7 +88,10 @@ func ValidateCPFWithCache(cpf string) (bool, string, string, bool) {
 	}
 
 	sanitizedCPF := nonDigitsRegex.ReplaceAllString(cpf, "")
-	cacheKey := "cpf:" + sanitizedCPF
+	cacheKey := cacheKeyFor("cpf", sanitizedCPF)
+
+	ctx, cancel := context.WithTimeout(context.Background(), cacheTimeout)
+	defer cancel()
 
 	cachedResult, err := rdb.Get(ctx, cacheKey).Result()
 	if err == nil {
@@ -80,9 +109,11 @@ func ValidateCPFWithCache(cpf string) (bool, string, string, bool) {
 	if isValid {
 		cacheValue = "true"
 	}
-	err = rdb.Set(ctx, cacheKey, cacheValue, 24*time.Hour).Err()
-	if err != nil {
-		fmt.Println("Error saving to cache:", err)
+	if err := rdb.Set(ctx, cacheKey, cacheValue, 24*time.Hour).Err(); err != nil {
+		// Debug, not error: a missing cache is a degraded mode, not a failure,
+		// and at info level a down Redis would drown the log at request rate.
+		// CacheHealthy() is what surfaces the condition.
+		slog.Debug("cache write failed", slog.String("error", err.Error()))
 	}
 
 	return isValid, sanitizedCPF, message, false
