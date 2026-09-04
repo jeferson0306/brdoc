@@ -141,9 +141,155 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/validate/batch": {
+            "post": {
+                "description": "Checks a list of values, each with its own document type. Returns one result per item plus a summary.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validation"
+                ],
+                "summary": "Validates several values in one request",
+                "parameters": [
+                    {
+                        "description": "Values to validate",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.BatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.BatchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.BatchResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "models.BatchItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is echoed back untouched so the caller can line results up with its\nown form fields without relying on ordering.",
+                    "type": "string"
+                },
+                "key": {
+                    "description": "Key is the document type, matching the query parameter names of GET /validate.",
+                    "type": "string"
+                },
+                "qualifier": {
+                    "description": "Qualifier carries the extra context a few documents need — today only the\nissuing state for an inscrição estadual.",
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.BatchRequest": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.BatchItem"
+                    }
+                }
+            }
+        },
+        "models.BatchResponse": {
+            "type": "object",
+            "properties": {
+                "error_code": {
+                    "type": "string"
+                },
+                "execution_time_ms": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.BatchResult"
+                    }
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "summary": {
+                    "$ref": "#/definitions/models.BatchSummary"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.BatchResult": {
+            "type": "object",
+            "properties": {
+                "error_code": {
+                    "type": "string"
+                },
+                "from_cache": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_valid": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "raw_value": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.BatchSummary": {
+            "type": "object",
+            "properties": {
+                "invalid": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "valid": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.ValidationResponse": {
             "type": "object",
             "properties": {

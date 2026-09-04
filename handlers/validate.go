@@ -53,50 +53,9 @@ func ValidateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if email := r.URL.Query().Get("email"); email != "" {
-		isValid, sanitizedValue, message := utils.ValidateEmail(email)
-		response = createResponse("email", email, sanitizedValue, isValid, message, start, false)
-	} else if cpf := r.URL.Query().Get("cpf"); cpf != "" {
-		isValid, sanitizedValue, message, fromCache := utils.ValidateCPFWithCache(cpf)
-		response = createResponse("cpf", cpf, sanitizedValue, isValid, message, start, fromCache)
-	} else if cnpj := r.URL.Query().Get("cnpj"); cnpj != "" {
-		isValid, sanitizedValue, message := utils.ValidateCNPJ(cnpj)
-		response = createResponse("cnpj", cnpj, sanitizedValue, isValid, message, start, false)
-	} else if documento := r.URL.Query().Get("documento"); documento != "" {
-		isValid, sanitizedValue, message := utils.ValidateDocument(documento)
-		response = createResponse("documento", documento, sanitizedValue, isValid, message, start, false)
-	} else if ie := r.URL.Query().Get("ie"); ie != "" {
-		isValid, sanitizedValue, message := utils.ValidateInscricaoEstadual(ie, r.URL.Query().Get("uf"))
-		response = createResponse("ie", ie, sanitizedValue, isValid, message, start, false)
-	} else if pis := r.URL.Query().Get("pis"); pis != "" {
-		isValid, sanitizedValue, message := utils.ValidatePIS(pis)
-		response = createResponse("pis", pis, sanitizedValue, isValid, message, start, false)
-	} else if titulo := r.URL.Query().Get("titulo"); titulo != "" {
-		isValid, sanitizedValue, message := utils.ValidateTituloEleitor(titulo)
-		response = createResponse("titulo", titulo, sanitizedValue, isValid, message, start, false)
-	} else if placa := r.URL.Query().Get("placa"); placa != "" {
-		isValid, sanitizedValue, message := utils.ValidatePlate(placa)
-		response = createResponse("placa", placa, sanitizedValue, isValid, message, start, false)
-	} else if pix := r.URL.Query().Get("pix"); pix != "" {
-		isValid, sanitizedValue, message := utils.ValidatePixKey(pix)
-		response = createResponse("pix", pix, sanitizedValue, isValid, message, start, false)
-	} else if name := r.URL.Query().Get("name"); name != "" {
-		isValid, sanitizedValue, message := utils.ValidateName(name)
-		response = createResponse("name", name, sanitizedValue, isValid, message, start, false)
-	} else if telephone := firstNonEmpty(r.URL.Query().Get("telephone"), r.URL.Query().Get("phone")); telephone != "" {
-		isValid, sanitizedValue, message := utils.ValidatePhone(telephone)
-		response = createResponse("telephone", telephone, sanitizedValue, isValid, message, start, false)
-	} else if plastic := r.URL.Query().Get("plastic"); plastic != "" {
-		isValid, sanitizedValue, message := utils.ValidatePlastic(plastic)
-		response = createResponse("plastic", plastic, sanitizedValue, isValid, message, start, false)
-	} else if rg := r.URL.Query().Get("rg"); rg != "" {
-		isValid, sanitizedValue, message := utils.ValidateRG(rg)
-		response = createResponse("rg", rg, sanitizedValue, isValid, message, start, false)
-	} else if cep := r.URL.Query().Get("cep"); cep != "" {
-		isValid, sanitizedValue, message := utils.ValidateCEP(cep)
-		response = createResponse("cep", cep, sanitizedValue, isValid, message, start, false)
-	} else {
-		response = models.ValidationResponse{
+	key, value := firstProvided(r)
+	if key == "" {
+		writeResponse(w, models.ValidationResponse{
 			StatusCode:      http.StatusBadRequest,
 			ErrorCode:       "MISSING_PARAMETER",
 			Message:         "No validation parameter provided",
@@ -104,40 +63,45 @@ func ValidateHandler(w http.ResponseWriter, r *http.Request) {
 			RequestID:       uuid.New().String(),
 			Timestamp:       time.Now(),
 			ExecutionTimeMs: int(time.Since(start).Milliseconds()),
-		}
+		})
+		return
 	}
 
+	// The qualifier is only read for the validations that take one; passing it
+	// unconditionally keeps this loop from growing a special case per document.
+	outcome, _ := utils.Validate(key, value, r.URL.Query().Get("uf"))
+	response = createResponse(key, value, outcome.Sanitized, outcome.Valid, outcome.Message, start, outcome.FromCache)
+
 	writeResponse(w, response)
+}
+
+// firstProvided returns the first validation parameter present, in the order
+// utils.ValidationKeys documents. "phone" remains an accepted alias for
+// "telephone" because it was published that way.
+func firstProvided(r *http.Request) (string, string) {
+	for _, key := range utils.ValidationKeys {
+		value := r.URL.Query().Get(key)
+		if key == "telephone" {
+			value = firstNonEmpty(value, r.URL.Query().Get("phone"))
+		}
+		if strings.TrimSpace(value) != "" {
+			return key, value
+		}
+	}
+	return "", ""
 }
 
 func validationCount(r *http.Request) int {
 	count := 0
 
-	if strings.TrimSpace(r.URL.Query().Get("email")) != "" {
-		count++
-	}
-	for _, key := range []string{"cnpj", "documento", "pis", "titulo", "placa", "pix", "ie"} {
-		if strings.TrimSpace(r.URL.Query().Get(key)) != "" {
+	for _, key := range utils.ValidationKeys {
+		value := r.URL.Query().Get(key)
+		if key == "telephone" {
+			value = firstNonEmpty(value, r.URL.Query().Get("phone"))
+		}
+		if strings.TrimSpace(value) != "" {
 			count++
 		}
-	}
-	if strings.TrimSpace(r.URL.Query().Get("cpf")) != "" {
-		count++
-	}
-	if strings.TrimSpace(r.URL.Query().Get("name")) != "" {
-		count++
-	}
-	if firstNonEmpty(r.URL.Query().Get("telephone"), r.URL.Query().Get("phone")) != "" {
-		count++
-	}
-	if strings.TrimSpace(r.URL.Query().Get("plastic")) != "" {
-		count++
-	}
-	if strings.TrimSpace(r.URL.Query().Get("rg")) != "" {
-		count++
-	}
-	if strings.TrimSpace(r.URL.Query().Get("cep")) != "" {
-		count++
 	}
 
 	return count

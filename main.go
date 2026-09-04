@@ -40,6 +40,9 @@ func main() {
 	router.GET("/validate", func(c *gin.Context) {
 		handlers.ValidateHandler(c.Writer, c.Request)
 	})
+	router.POST("/validate/batch", func(c *gin.Context) {
+		handlers.BatchHandler(c.Writer, c.Request)
+	})
 
 	server := &http.Server{
 		Addr:              ":" + port(),
