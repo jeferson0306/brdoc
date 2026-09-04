@@ -47,6 +47,26 @@ paths:
         in: query
         name: cnpj
         type: string
+      - description: CPF or CNPJ, whichever the digits describe
+        in: query
+        name: documento
+        type: string
+      - description: PIS/PASEP/NIT/NIS to be validated
+        in: query
+        name: pis
+        type: string
+      - description: Voter registration number to be validated
+        in: query
+        name: titulo
+        type: string
+      - description: Vehicle plate, old or Mercosul pattern
+        in: query
+        name: placa
+        type: string
+      - description: PIX key in any of its five forms
+        in: query
+        name: pix
+        type: string
       - description: Name to be validated
         in: query
         name: name

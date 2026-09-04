@@ -132,3 +132,48 @@ func TestValidateHandlerCNPJ(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateHandlerNewDocuments(t *testing.T) {
+	tests := []struct {
+		name       string
+		query      string
+		wantStatus int
+		wantValid  bool
+		wantKey    string
+	}{
+		{"documento_cpf", "documento=529.982.247-25", http.StatusOK, true, "documento"},
+		{"documento_cnpj", "documento=33.000.167/0001-01", http.StatusOK, true, "documento"},
+		{"pis", "pis=12056874107", http.StatusOK, true, "pis"},
+		{"pis_invalid", "pis=12056412547", http.StatusUnprocessableEntity, false, "pis"},
+		{"placa_mercosul", "placa=ABC1D23", http.StatusOK, true, "placa"},
+		{"placa_invalid", "placa=AB1CD23", http.StatusUnprocessableEntity, false, "placa"},
+		{"pix_email", "pix=jeferson@example.com", http.StatusOK, true, "pix"},
+		{"pix_invalid", "pix=minha-chave", http.StatusUnprocessableEntity, false, "pix"},
+		// Each new parameter must join the one-per-request rule, or it becomes
+		// a way to smuggle a second validation past the guard.
+		{"two_new_parameters", "pis=12056874107&placa=ABC1D23", http.StatusBadRequest, false, ""},
+		{"new_parameter_with_cpf", "pix=jeferson@example.com&cpf=529.982.247-25", http.StatusBadRequest, false, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			ValidateHandler(recorder, httptest.NewRequest(http.MethodGet, "/validate?"+tt.query, nil))
+
+			if recorder.Code != tt.wantStatus {
+				t.Fatalf("expected status %d, got %d: %s", tt.wantStatus, recorder.Code, recorder.Body.String())
+			}
+
+			var response models.ValidationResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+				t.Fatalf("could not decode the response: %v", err)
+			}
+			if response.IsValid != tt.wantValid {
+				t.Fatalf("expected is_valid=%v, got %v (%s)", tt.wantValid, response.IsValid, response.Message)
+			}
+			if tt.wantKey != "" && response.ParameterKey != tt.wantKey {
+				t.Fatalf("expected parameter_key %q, got %q", tt.wantKey, response.ParameterKey)
+			}
+		})
+	}
+}

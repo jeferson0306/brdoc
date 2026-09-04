@@ -18,6 +18,11 @@ import (
 // @Param email query string false "Email to be validated"
 // @Param cpf query string false "CPF to be validated"
 // @Param cnpj query string false "CNPJ to be validated"
+// @Param documento query string false "CPF or CNPJ, whichever the digits describe"
+// @Param pis query string false "PIS/PASEP/NIT/NIS to be validated"
+// @Param titulo query string false "Voter registration number to be validated"
+// @Param placa query string false "Vehicle plate, old or Mercosul pattern"
+// @Param pix query string false "PIX key in any of its five forms"
 // @Param name query string false "Name to be validated"
 // @Param telephone query string false "Phone number to be validated"
 // @Param phone query string false "Phone number to be validated"
@@ -55,6 +60,21 @@ func ValidateHandler(w http.ResponseWriter, r *http.Request) {
 	} else if cnpj := r.URL.Query().Get("cnpj"); cnpj != "" {
 		isValid, sanitizedValue, message := utils.ValidateCNPJ(cnpj)
 		response = createResponse("cnpj", cnpj, sanitizedValue, isValid, message, start, false)
+	} else if documento := r.URL.Query().Get("documento"); documento != "" {
+		isValid, sanitizedValue, message := utils.ValidateDocument(documento)
+		response = createResponse("documento", documento, sanitizedValue, isValid, message, start, false)
+	} else if pis := r.URL.Query().Get("pis"); pis != "" {
+		isValid, sanitizedValue, message := utils.ValidatePIS(pis)
+		response = createResponse("pis", pis, sanitizedValue, isValid, message, start, false)
+	} else if titulo := r.URL.Query().Get("titulo"); titulo != "" {
+		isValid, sanitizedValue, message := utils.ValidateTituloEleitor(titulo)
+		response = createResponse("titulo", titulo, sanitizedValue, isValid, message, start, false)
+	} else if placa := r.URL.Query().Get("placa"); placa != "" {
+		isValid, sanitizedValue, message := utils.ValidatePlate(placa)
+		response = createResponse("placa", placa, sanitizedValue, isValid, message, start, false)
+	} else if pix := r.URL.Query().Get("pix"); pix != "" {
+		isValid, sanitizedValue, message := utils.ValidatePixKey(pix)
+		response = createResponse("pix", pix, sanitizedValue, isValid, message, start, false)
 	} else if name := r.URL.Query().Get("name"); name != "" {
 		isValid, sanitizedValue, message := utils.ValidateName(name)
 		response = createResponse("name", name, sanitizedValue, isValid, message, start, false)
@@ -91,8 +111,10 @@ func validationCount(r *http.Request) int {
 	if strings.TrimSpace(r.URL.Query().Get("email")) != "" {
 		count++
 	}
-	if strings.TrimSpace(r.URL.Query().Get("cnpj")) != "" {
-		count++
+	for _, key := range []string{"cnpj", "documento", "pis", "titulo", "placa", "pix"} {
+		if strings.TrimSpace(r.URL.Query().Get(key)) != "" {
+			count++
+		}
 	}
 	if strings.TrimSpace(r.URL.Query().Get("cpf")) != "" {
 		count++

@@ -184,35 +184,12 @@ func ValidateCNPJ(cnpj string) (bool, string, string) {
 	firstWeights := []int{5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
 	secondWeights := []int{6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
 
-	if checkDigit(sanitizedCNPJ[:12], firstWeights) != int(sanitizedCNPJ[12]-'0') ||
-		checkDigit(sanitizedCNPJ[:13], secondWeights) != int(sanitizedCNPJ[13]-'0') {
+	if mod11Digit(sanitizedCNPJ[:12], firstWeights) != int(sanitizedCNPJ[12]-'0') ||
+		mod11Digit(sanitizedCNPJ[:13], secondWeights) != int(sanitizedCNPJ[13]-'0') {
 		return false, sanitizedCNPJ, "Invalid CNPJ format"
 	}
 
 	return true, sanitizedCNPJ, "Valid CNPJ format"
-}
-
-// checkDigit applies the weighted sum the Receita Federal specifies: a
-// remainder below 2 yields a zero, otherwise the digit is 11 minus it.
-func checkDigit(digits string, weights []int) int {
-	sum := 0
-	for i, weight := range weights {
-		sum += int(digits[i]-'0') * weight
-	}
-
-	if remainder := sum % 11; remainder >= 2 {
-		return 11 - remainder
-	}
-	return 0
-}
-
-func allSameDigit(digits string) bool {
-	for i := 1; i < len(digits); i++ {
-		if digits[i] != digits[0] {
-			return false
-		}
-	}
-	return len(digits) > 0
 }
 
 // ValidateEmail validates if the email format is correct.
