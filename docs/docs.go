@@ -37,6 +37,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "CNPJ to be validated",
+                        "name": "cnpj",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Name to be validated",
                         "name": "name",
                         "in": "query"
@@ -45,6 +51,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Phone number to be validated",
                         "name": "telephone",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Phone number to be validated",
+                        "name": "phone",
                         "in": "query"
                     },
                     {
@@ -78,6 +90,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/models.ValidationResponse"
                         }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/models.ValidationResponse"
+                        }
                     }
                 }
             }
@@ -87,6 +105,9 @@ const docTemplate = `{
         "models.ValidationResponse": {
             "type": "object",
             "properties": {
+                "error_code": {
+                    "type": "string"
+                },
                 "execution_time_ms": {
                     "type": "integer"
                 },

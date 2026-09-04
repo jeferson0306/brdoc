@@ -31,3 +31,6 @@ docker-compose.override.yml
 Thumbs.db
 
 vcs.xml
+# JetBrains project files are per-developer, not per-project.
+.idea/
+*.iml

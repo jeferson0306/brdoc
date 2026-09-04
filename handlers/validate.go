@@ -17,6 +17,7 @@ import (
 // @Tags Validation
 // @Param email query string false "Email to be validated"
 // @Param cpf query string false "CPF to be validated"
+// @Param cnpj query string false "CNPJ to be validated"
 // @Param name query string false "Name to be validated"
 // @Param telephone query string false "Phone number to be validated"
 // @Param phone query string false "Phone number to be validated"
@@ -51,6 +52,9 @@ func ValidateHandler(w http.ResponseWriter, r *http.Request) {
 	} else if cpf := r.URL.Query().Get("cpf"); cpf != "" {
 		isValid, sanitizedValue, message, fromCache := utils.ValidateCPFWithCache(cpf)
 		response = createResponse("cpf", cpf, sanitizedValue, isValid, message, start, fromCache)
+	} else if cnpj := r.URL.Query().Get("cnpj"); cnpj != "" {
+		isValid, sanitizedValue, message := utils.ValidateCNPJ(cnpj)
+		response = createResponse("cnpj", cnpj, sanitizedValue, isValid, message, start, false)
 	} else if name := r.URL.Query().Get("name"); name != "" {
 		isValid, sanitizedValue, message := utils.ValidateName(name)
 		response = createResponse("name", name, sanitizedValue, isValid, message, start, false)
@@ -85,6 +89,9 @@ func validationCount(r *http.Request) int {
 	count := 0
 
 	if strings.TrimSpace(r.URL.Query().Get("email")) != "" {
+		count++
+	}
+	if strings.TrimSpace(r.URL.Query().Get("cnpj")) != "" {
 		count++
 	}
 	if strings.TrimSpace(r.URL.Query().Get("cpf")) != "" {

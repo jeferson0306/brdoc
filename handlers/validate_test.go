@@ -98,3 +98,37 @@ func TestValidateHandlerCPFValidationFailureStatus(t *testing.T) {
 		t.Fatalf("expected VALIDATION_FAILED, got %s", response.ErrorCode)
 	}
 }
+
+func TestValidateHandlerCNPJ(t *testing.T) {
+	tests := []struct {
+		name       string
+		query      string
+		wantStatus int
+		wantValid  bool
+	}{
+		{"valid_cnpj", "cnpj=33.000.167/0001-01", http.StatusOK, true},
+		{"invalid_cnpj", "cnpj=33.000.167/0001-11", http.StatusUnprocessableEntity, false},
+		// CNPJ has to take part in the one-parameter-per-request rule, or it
+		// becomes the hole through which two validations arrive at once.
+		{"cnpj_with_cpf", "cnpj=33.000.167/0001-01&cpf=529.982.247-25", http.StatusBadRequest, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			ValidateHandler(recorder, httptest.NewRequest(http.MethodGet, "/validate?"+tt.query, nil))
+
+			if recorder.Code != tt.wantStatus {
+				t.Fatalf("expected status %d, got %d: %s", tt.wantStatus, recorder.Code, recorder.Body.String())
+			}
+
+			var response models.ValidationResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+				t.Fatalf("could not decode the response: %v", err)
+			}
+			if response.IsValid != tt.wantValid {
+				t.Fatalf("expected is_valid=%v, got %v (%s)", tt.wantValid, response.IsValid, response.Message)
+			}
+		})
+	}
+}
