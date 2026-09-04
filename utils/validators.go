@@ -21,6 +21,25 @@ var (
 	nameRegex      = regexp.MustCompile(`[^\p{L}\s\-']`)
 )
 
+// Characters a person legitimately types *around* the value. Anything outside
+// these sets means the caller sent something that is not the document at all.
+//
+// Stripping every non-digit and then validating what remains accepts
+// "abc529.982.247-25" and "529.982.247-25jasasas" as valid CPFs, because the
+// letters disappear before the check digits are computed. An API that answers
+// "valid" to those lets junk into the caller's database.
+//
+// These guard the *decision*. Sanitisation still happens afterwards for values
+// that pass, so "529.982.247-25" is still normalised to "52998224725".
+var (
+	cpfChars   = regexp.MustCompile(`^[\d.\-\s]*$`)
+	rgChars    = regexp.MustCompile(`^[\d.\-\s]*[xX]?$`)
+	cepChars   = regexp.MustCompile(`^[\d\-\s]*$`)
+	phoneChars = regexp.MustCompile(`^[\d+().\-\s]*$`)
+	cardChars  = regexp.MustCompile(`^[\d\-\s]*$`)
+	nameChars  = regexp.MustCompile(`^[\p{L}\s\-'.]*$`)
+)
+
 // Initialize Redis client
 var rdb = redis.NewClient(&redis.Options{
 	Addr: getRedisAddr(),
@@ -35,6 +54,13 @@ func getRedisAddr() string {
 
 // ValidateCPFWithCache validates the CPF and uses cache to avoid duplicate validations.
 func ValidateCPFWithCache(cpf string) (bool, string, string, bool) {
+	// Before the cache, not after: the key is built from the extracted digits, so
+	// "abc529.982.247-25" and "529.982.247-25" would otherwise share an entry and
+	// the dirty value would inherit the clean one's cached "true".
+	if !cpfChars.MatchString(cpf) {
+		return false, cpf, "Invalid CPF format (unexpected characters)", false
+	}
+
 	sanitizedCPF := nonDigitsRegex.ReplaceAllString(cpf, "")
 	cacheKey := "cpf:" + sanitizedCPF
 
@@ -64,6 +90,10 @@ func ValidateCPFWithCache(cpf string) (bool, string, string, bool) {
 
 // ValidateCPF checks the format of a CPF number.
 func ValidateCPF(cpf string) (bool, string, string) {
+	if !cpfChars.MatchString(cpf) {
+		return false, cpf, "Invalid CPF format (unexpected characters)"
+	}
+
 	sanitizedCPF := nonDigitsRegex.ReplaceAllString(cpf, "")
 	if len(sanitizedCPF) != 11 || !isValidCPF(sanitizedCPF) {
 		return false, sanitizedCPF, "Invalid CPF format"
@@ -109,6 +139,10 @@ func ValidateEmail(email string) (bool, string, string) {
 
 // ValidateRG validates the format of a Brazilian RG (Registro Geral).
 func ValidateRG(rg string) (bool, string, string) {
+	if !rgChars.MatchString(rg) {
+		return false, rg, "Invalid RG format (unexpected characters)"
+	}
+
 	sanitizedRG := nonDigitsRegex.ReplaceAllString(rg, "")
 
 	if len(sanitizedRG) < 7 || len(sanitizedRG) > 9 {
@@ -120,6 +154,10 @@ func ValidateRG(rg string) (bool, string, string) {
 
 // ValidateCEP validates a Brazilian postal code (CEP).
 func ValidateCEP(cep string) (bool, string, string) {
+	if !cepChars.MatchString(cep) {
+		return false, cep, "Invalid CEP format (unexpected characters)"
+	}
+
 	sanitizedCEP := nonDigitsRegex.ReplaceAllString(cep, "")
 
 	if len(sanitizedCEP) != 8 {
@@ -136,6 +174,10 @@ func ValidateCEP(cep string) (bool, string, string) {
 // ValidateName sanitizes and validates the name format.
 func ValidateName(name string) (bool, string, string) {
 	rawName := name
+	if !nameChars.MatchString(name) {
+		return false, rawName, "Invalid name format (unexpected characters)"
+	}
+
 	sanitizedName := removeAccents(name)
 
 	sanitizedName = nameRegex.ReplaceAllString(sanitizedName, "")
@@ -171,6 +213,10 @@ func removeAccents(input string) string {
 
 // ValidatePhone validates and sanitizes Brazilian phone numbers.
 func ValidatePhone(phone string) (bool, string, string) {
+	if !phoneChars.MatchString(phone) {
+		return false, phone, "Invalid phone format (unexpected characters)"
+	}
+
 	sanitizedPhone := nonDigitsRegex.ReplaceAllString(phone, "")
 
 	if strings.HasPrefix(sanitizedPhone, "55") && (len(sanitizedPhone) == 12 || len(sanitizedPhone) == 13) {
@@ -199,6 +245,10 @@ func ValidatePhone(phone string) (bool, string, string) {
 
 // ValidatePlastic validates a credit card number using the Luhn Algorithm and determines its brand.
 func ValidatePlastic(cardNumber string) (bool, string, string) {
+	if !cardChars.MatchString(cardNumber) {
+		return false, cardNumber, "Invalid credit card number (unexpected characters)"
+	}
+
 	sanitizedCardNumber := nonDigitsRegex.ReplaceAllString(cardNumber, "")
 
 	if len(sanitizedCardNumber) < 13 || len(sanitizedCardNumber) > 19 {
