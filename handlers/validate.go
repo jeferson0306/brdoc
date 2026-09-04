@@ -23,6 +23,8 @@ import (
 // @Param titulo query string false "Voter registration number to be validated"
 // @Param placa query string false "Vehicle plate, old or Mercosul pattern"
 // @Param pix query string false "PIX key in any of its five forms"
+// @Param ie query string false "State registration; requires uf"
+// @Param uf query string false "Two-letter state code qualifying ie"
 // @Param name query string false "Name to be validated"
 // @Param telephone query string false "Phone number to be validated"
 // @Param phone query string false "Phone number to be validated"
@@ -63,6 +65,9 @@ func ValidateHandler(w http.ResponseWriter, r *http.Request) {
 	} else if documento := r.URL.Query().Get("documento"); documento != "" {
 		isValid, sanitizedValue, message := utils.ValidateDocument(documento)
 		response = createResponse("documento", documento, sanitizedValue, isValid, message, start, false)
+	} else if ie := r.URL.Query().Get("ie"); ie != "" {
+		isValid, sanitizedValue, message := utils.ValidateInscricaoEstadual(ie, r.URL.Query().Get("uf"))
+		response = createResponse("ie", ie, sanitizedValue, isValid, message, start, false)
 	} else if pis := r.URL.Query().Get("pis"); pis != "" {
 		isValid, sanitizedValue, message := utils.ValidatePIS(pis)
 		response = createResponse("pis", pis, sanitizedValue, isValid, message, start, false)
@@ -111,7 +116,7 @@ func validationCount(r *http.Request) int {
 	if strings.TrimSpace(r.URL.Query().Get("email")) != "" {
 		count++
 	}
-	for _, key := range []string{"cnpj", "documento", "pis", "titulo", "placa", "pix"} {
+	for _, key := range []string{"cnpj", "documento", "pis", "titulo", "placa", "pix", "ie"} {
 		if strings.TrimSpace(r.URL.Query().Get(key)) != "" {
 			count++
 		}

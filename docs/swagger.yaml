@@ -67,6 +67,14 @@ paths:
         in: query
         name: pix
         type: string
+      - description: State registration; requires uf
+        in: query
+        name: ie
+        type: string
+      - description: Two-letter state code qualifying ie
+        in: query
+        name: uf
+        type: string
       - description: Name to be validated
         in: query
         name: name

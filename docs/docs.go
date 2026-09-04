@@ -73,6 +73,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "State registration; requires uf",
+                        "name": "ie",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Two-letter state code qualifying ie",
+                        "name": "uf",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Name to be validated",
                         "name": "name",
                         "in": "query"

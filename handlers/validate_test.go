@@ -177,3 +177,41 @@ func TestValidateHandlerNewDocuments(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateHandlerInscricaoEstadual(t *testing.T) {
+	tests := []struct {
+		name       string
+		query      string
+		wantStatus int
+		wantValid  bool
+	}{
+		{"valid_with_state", "ie=0100482300112&uf=AC", http.StatusOK, true},
+		{"valid_elsewhere", "ie=0100482300112&uf=SP", http.StatusUnprocessableEntity, false},
+		{"missing_state", "ie=0100482300112", http.StatusUnprocessableEntity, false},
+		{"unknown_state", "ie=0100482300112&uf=XX", http.StatusUnprocessableEntity, false},
+		{"exempt", "ie=ISENTO&uf=SP", http.StatusOK, true},
+		// uf qualifies ie rather than being a validation of its own, so it must
+		// not push the request over the one-parameter limit.
+		{"uf_is_not_a_second_validation", "ie=0100482300112&uf=AC", http.StatusOK, true},
+		{"ie_with_cpf", "ie=0100482300112&uf=AC&cpf=529.982.247-25", http.StatusBadRequest, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			ValidateHandler(recorder, httptest.NewRequest(http.MethodGet, "/validate?"+tt.query, nil))
+
+			if recorder.Code != tt.wantStatus {
+				t.Fatalf("expected status %d, got %d: %s", tt.wantStatus, recorder.Code, recorder.Body.String())
+			}
+
+			var response models.ValidationResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+				t.Fatalf("could not decode the response: %v", err)
+			}
+			if response.IsValid != tt.wantValid {
+				t.Fatalf("expected is_valid=%v, got %v (%s)", tt.wantValid, response.IsValid, response.Message)
+			}
+		})
+	}
+}
