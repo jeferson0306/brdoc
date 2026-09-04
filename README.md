@@ -85,6 +85,20 @@ Worth knowing before reaching for a cache: a CPF check costs about half a
 microsecond, against a Redis round trip measured at 150–220 ms in production.
 The cache is opt-in through `REDIS_ADDR` and off by default.
 
+## Configuration
+
+Every value is optional and the service runs with none of them set.
+
+| Variable | Effect |
+|---|---|
+| `PORT` | Listen address. Defaults to 8080. |
+| `TRUSTED_PLATFORM` | `cloudflare` reads the caller's address from `CF-Connecting-IP`. **Set this on Render**, which fronts services with Cloudflare — without it every caller shares one rate-limit bucket. |
+| `TRUSTED_PROXIES` | CIDRs allowed to set `X-Forwarded-For`, for other hosts. |
+| `RATE_LIMIT_RPS` | Requests per second per caller. Defaults to 20. |
+| `RATE_LIMIT_BURST` | Burst allowance. Defaults to 60. |
+| `REDIS_ADDR` | Enables the optional CPF cache. Off by default, and the benchmarks above explain why. |
+| `LOG_LEVEL` | `debug` for cache diagnostics. |
+
 ## Layout
 
 ```
