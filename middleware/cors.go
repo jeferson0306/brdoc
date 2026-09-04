@@ -47,7 +47,7 @@ func CORS() gin.HandlerFunc {
 		for _, allowed := range allowedOrigins() {
 			if origin != "" && origin == allowed {
 				c.Header("Access-Control-Allow-Origin", origin)
-				c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
+				c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 				c.Header("Access-Control-Allow-Headers", "Content-Type")
 				c.Header("Access-Control-Max-Age", "86400")
 				break
