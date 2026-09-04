@@ -39,6 +39,7 @@ var (
 // that pass, so "529.982.247-25" is still normalised to "52998224725".
 var (
 	cpfChars   = regexp.MustCompile(`^[\d.\-\s]*$`)
+	cnpjChars  = regexp.MustCompile(`^[\d.\-/\s]*$`)
 	rgChars    = regexp.MustCompile(`^[\d.\-\s]*[xX]?$`)
 	cepChars   = regexp.MustCompile(`^[\d\-\s]*$`)
 	phoneChars = regexp.MustCompile(`^[\d+().\-\s]*$`)
@@ -157,6 +158,61 @@ func isValidCPF(cpf string) bool {
 		}
 	}
 	return true
+}
+
+// ValidateCNPJ checks the format and both check digits of a CNPJ.
+//
+// Ported from the shared TypeScript validators so the two cannot disagree; the
+// weights and the "remainder below 2 means zero" rule come from the Receita
+// Federal specification.
+func ValidateCNPJ(cnpj string) (bool, string, string) {
+	if !cnpjChars.MatchString(cnpj) {
+		return false, cnpj, "Invalid CNPJ format (unexpected characters)"
+	}
+
+	sanitizedCNPJ := nonDigitsRegex.ReplaceAllString(cnpj, "")
+	if len(sanitizedCNPJ) != 14 {
+		return false, sanitizedCNPJ, "Invalid CNPJ format (incorrect length)"
+	}
+
+	// A CNPJ of one repeated digit passes the check-digit arithmetic, so it has
+	// to be excluded explicitly — 00.000.000/0000-00 is the classic example.
+	if allSameDigit(sanitizedCNPJ) {
+		return false, sanitizedCNPJ, "Invalid CNPJ format"
+	}
+
+	firstWeights := []int{5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
+	secondWeights := []int{6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
+
+	if checkDigit(sanitizedCNPJ[:12], firstWeights) != int(sanitizedCNPJ[12]-'0') ||
+		checkDigit(sanitizedCNPJ[:13], secondWeights) != int(sanitizedCNPJ[13]-'0') {
+		return false, sanitizedCNPJ, "Invalid CNPJ format"
+	}
+
+	return true, sanitizedCNPJ, "Valid CNPJ format"
+}
+
+// checkDigit applies the weighted sum the Receita Federal specifies: a
+// remainder below 2 yields a zero, otherwise the digit is 11 minus it.
+func checkDigit(digits string, weights []int) int {
+	sum := 0
+	for i, weight := range weights {
+		sum += int(digits[i]-'0') * weight
+	}
+
+	if remainder := sum % 11; remainder >= 2 {
+		return 11 - remainder
+	}
+	return 0
+}
+
+func allSameDigit(digits string) bool {
+	for i := 1; i < len(digits); i++ {
+		if digits[i] != digits[0] {
+			return false
+		}
+	}
+	return len(digits) > 0
 }
 
 // ValidateEmail validates if the email format is correct.

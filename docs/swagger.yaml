@@ -1,6 +1,8 @@
 definitions:
   models.ValidationResponse:
     properties:
+      error_code:
+        type: string
       execution_time_ms:
         type: integer
       from_cache:
@@ -41,6 +43,10 @@ paths:
         in: query
         name: cpf
         type: string
+      - description: CNPJ to be validated
+        in: query
+        name: cnpj
+        type: string
       - description: Name to be validated
         in: query
         name: name
@@ -48,6 +54,10 @@ paths:
       - description: Phone number to be validated
         in: query
         name: telephone
+        type: string
+      - description: Phone number to be validated
+        in: query
+        name: phone
         type: string
       - description: Credit card number to be validated
         in: query
@@ -68,6 +78,10 @@ paths:
             $ref: '#/definitions/models.ValidationResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ValidationResponse'
+        "422":
+          description: Unprocessable Entity
           schema:
             $ref: '#/definitions/models.ValidationResponse'
       summary: Validates provided data format
