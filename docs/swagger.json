@@ -32,6 +32,36 @@
                     },
                     {
                         "type": "string",
+                        "description": "CPF or CNPJ, whichever the digits describe",
+                        "name": "documento",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "PIS/PASEP/NIT/NIS to be validated",
+                        "name": "pis",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Voter registration number to be validated",
+                        "name": "titulo",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Vehicle plate, old or Mercosul pattern",
+                        "name": "placa",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "PIX key in any of its five forms",
+                        "name": "pix",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Name to be validated",
                         "name": "name",
                         "in": "query"
