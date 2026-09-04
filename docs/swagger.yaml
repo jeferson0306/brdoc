@@ -138,6 +138,18 @@ paths:
         in: query
         name: placa
         type: string
+      - description: Driving licence number to be validated
+        in: query
+        name: cnh
+        type: string
+      - description: Vehicle registration number, 9 or 11 digits
+        in: query
+        name: renavam
+        type: string
+      - description: Bank slip linha digitável, 47 digits
+        in: query
+        name: boleto
+        type: string
       - description: PIX key in any of its five forms
         in: query
         name: pix

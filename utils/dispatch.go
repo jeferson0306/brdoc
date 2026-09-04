@@ -42,6 +42,9 @@ var validators = map[string]validatorFunc{
 		return Outcome{Sanitized: sanitized, Valid: valid, Message: message}
 	},
 	"pis":       plain(ValidatePIS),
+	"cnh":       plain(ValidateCNH),
+	"renavam":   plain(ValidateRenavam),
+	"boleto":    plain(ValidateBoleto),
 	"titulo":    plain(ValidateTituloEleitor),
 	"placa":     plain(ValidatePlate),
 	"pix":       plain(ValidatePixKey),
@@ -57,7 +60,8 @@ var validators = map[string]validatorFunc{
 // is random in Go and the endpoint's behaviour must not be.
 var ValidationKeys = []string{
 	"email", "cpf", "cnpj", "documento", "ie", "pis", "titulo",
-	"placa", "pix", "name", "telephone", "plastic", "rg", "cep",
+	"cnh", "renavam", "placa", "boleto", "pix",
+	"name", "telephone", "plastic", "rg", "cep",
 }
 
 // SupportedKeys reports what can be validated, for error messages.

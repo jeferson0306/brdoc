@@ -215,3 +215,52 @@ func TestValidateHandlerInscricaoEstadual(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateHandlerVehicleAndBoleto(t *testing.T) {
+	tests := []struct {
+		name       string
+		query      string
+		wantStatus int
+		wantValid  bool
+	}{
+		{"cnh", "cnh=00000000119", http.StatusOK, true},
+		{"cnh_invalid", "cnh=12345678901", http.StatusUnprocessableEntity, false},
+		{"renavam_nine", "renavam=639884962", http.StatusOK, true},
+		{"renavam_eleven", "renavam=00639884962", http.StatusOK, true},
+		{"boleto", "boleto=00190000090114971860168524522114675860000102656", http.StatusOK, true},
+		{"boleto_arrecadacao_is_not_checked", "boleto=846700000017435900240200610207807116000000000000", http.StatusUnprocessableEntity, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			ValidateHandler(recorder, httptest.NewRequest(http.MethodGet, "/validate?"+tt.query, nil))
+
+			if recorder.Code != tt.wantStatus {
+				t.Fatalf("expected status %d, got %d: %s", tt.wantStatus, recorder.Code, recorder.Body.String())
+			}
+
+			var response models.ValidationResponse
+			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+				t.Fatalf("could not decode the response: %v", err)
+			}
+			if response.IsValid != tt.wantValid {
+				t.Fatalf("expected is_valid=%v, got %v (%s)", tt.wantValid, response.IsValid, response.Message)
+			}
+		})
+	}
+}
+
+// The batch endpoint reads the same table, so the three new documents must be
+// reachable there without another line of wiring.
+func TestBatchReachesTheNewDocuments(t *testing.T) {
+	recorder, response := postBatch(t, `{"items":[
+		{"key":"cnh","value":"00000000119"},
+		{"key":"renavam","value":"639884962"},
+		{"key":"boleto","value":"00190000090114971860168524522114675860000102656"}
+	]}`)
+
+	if recorder.Code != http.StatusOK || response.Summary.Valid != 3 {
+		t.Fatalf("expected all three to validate through the batch: %+v", response)
+	}
+}
