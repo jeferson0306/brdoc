@@ -67,6 +67,24 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Driving licence number to be validated",
+                        "name": "cnh",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Vehicle registration number, 9 or 11 digits",
+                        "name": "renavam",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bank slip linha digitável, 47 digits",
+                        "name": "boleto",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "PIX key in any of its five forms",
                         "name": "pix",
                         "in": "query"
