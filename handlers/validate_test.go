@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"DataValidatorAPI/models"
+	"github.com/jeferson0306/api-data-validator/models"
 )
 
 func TestValidateHandlerMissingParameter(t *testing.T) {

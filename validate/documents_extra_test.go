@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import "testing"
 
@@ -26,7 +26,7 @@ func TestValidatePlate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isValid, _, message := ValidatePlate(tt.plate)
+			isValid, _, message := checkPlate(tt.plate)
 			if isValid != tt.valid {
 				t.Fatalf("expected valid=%v, got %v (%s)", tt.valid, isValid, message)
 			}
@@ -52,7 +52,7 @@ func TestValidateDocument(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isValid, _, message := ValidateDocument(tt.document)
+			isValid, _, message := checkDocument(tt.document)
 			if isValid != tt.valid {
 				t.Fatalf("expected valid=%v, got %v (%s)", tt.valid, isValid, message)
 			}
@@ -87,7 +87,7 @@ func TestValidatePixKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isValid, _, message := ValidatePixKey(tt.key)
+			isValid, _, message := checkPixKey(tt.key)
 			if isValid != tt.valid {
 				t.Fatalf("expected valid=%v, got %v (%s)", tt.valid, isValid, message)
 			}

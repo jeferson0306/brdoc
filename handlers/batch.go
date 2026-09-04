@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"DataValidatorAPI/models"
-	"DataValidatorAPI/utils"
+	"github.com/jeferson0306/api-data-validator/internal/cache"
+	"github.com/jeferson0306/api-data-validator/models"
+	"github.com/jeferson0306/api-data-validator/validate"
 
 	"github.com/google/uuid"
 )
@@ -101,21 +102,31 @@ func validateItem(item models.BatchItem) models.BatchResult {
 		return result
 	}
 
-	outcome, known := utils.Validate(key, item.Value, item.Qualifier)
+	// CPF is the one check routed through the cache, so that from_cache means
+	// the same thing on both endpoints.
+	if key == "cpf" {
+		outcome, fromCache := cache.CPF(item.Value)
+		result.Value = outcome.Normalized
+		result.IsValid = outcome.Valid
+		result.Message = outcome.Reason
+		result.FromCache = fromCache
+		return result
+	}
+
+	outcome, known := validate.ByKey(key, item.Value, item.Qualifier)
 	if !known {
 		// Distinguished from a failed validation on purpose: an unknown key is
 		// the caller's mistake, and reporting it as "invalid" would suggest the
 		// value was checked and rejected.
 		result.ErrorCode = "UNKNOWN_KEY"
 		result.Message = "Unknown document type " + key +
-			" (expected one of " + strings.Join(utils.SupportedKeys(), ", ") + ")"
+			" (expected one of " + strings.Join(validate.Keys(), ", ") + ")"
 		return result
 	}
 
-	result.Value = outcome.Sanitized
+	result.Value = outcome.Normalized
 	result.IsValid = outcome.Valid
-	result.Message = outcome.Message
-	result.FromCache = outcome.FromCache
+	result.Message = outcome.Reason
 	return result
 }
 

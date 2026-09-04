@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import (
 	"regexp"
@@ -12,9 +12,9 @@ import (
 
 var ieChars = regexp.MustCompile(`^[\dPp.\-/\s]*$`)
 
-// SupportedIEStates lists the states this service can check, sorted, for the
+// supportedStates lists the states this service can check, sorted, for the
 // error message when an unknown one arrives.
-func SupportedIEStates() []string {
+func supportedStates() []string {
 	states := make([]string, 0, len(ieValidators))
 	for uf := range ieValidators {
 		states = append(states, uf)
@@ -23,13 +23,13 @@ func SupportedIEStates() []string {
 	return states
 }
 
-// ValidateInscricaoEstadual checks a state registration against the roteiro de
+// checkInscricaoEstadual checks a state registration against the roteiro de
 // crítica published by the issuing state.
 //
 // The state is a required argument, not an inference. A registration carries no
 // marker of where it came from, so a service that guessed would be answering a
 // question it was not asked.
-func ValidateInscricaoEstadual(ie, uf string) (bool, string, string) {
+func checkInscricaoEstadual(ie, uf string) (bool, string, string) {
 	// "Isento" — exempt — is a legitimate value in every state for a business
 	// that is registered but has no number assigned. It has to be recognised
 	// before the character guard, which allows only digits and formatting.
@@ -48,7 +48,7 @@ func ValidateInscricaoEstadual(ie, uf string) (bool, string, string) {
 
 	validate, supported := ieValidators[state]
 	if !supported {
-		return false, ie, "Unknown state " + state + " (expected one of " + strings.Join(SupportedIEStates(), ", ") + ")"
+		return false, ie, "Unknown state " + state + " (expected one of " + strings.Join(supportedStates(), ", ") + ")"
 	}
 
 	// São Paulo's rural registrations open with a P; every other character that

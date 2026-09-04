@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import (
 	"fmt"
@@ -28,7 +28,7 @@ func TestValidatePISKnownVectors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.pis, func(t *testing.T) {
-			isValid, _, message := ValidatePIS(tt.pis)
+			isValid, _, message := checkPIS(tt.pis)
 			if isValid != tt.valid {
 				t.Fatalf("expected valid=%v, got %v (%s)", tt.valid, isValid, message)
 			}
@@ -52,7 +52,7 @@ func TestValidateTituloEleitor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isValid, _, message := ValidateTituloEleitor(tt.value)
+			isValid, _, message := checkTituloEleitor(tt.value)
 			if isValid != tt.valid {
 				t.Fatalf("expected valid=%v, got %v (%s)", tt.valid, isValid, message)
 			}
@@ -135,7 +135,7 @@ func TestPISAgreesWithReference(t *testing.T) {
 
 	for i := 0; i < 5000; i++ {
 		candidate := randomDigits(random, 11)
-		got, _, _ := ValidatePIS(candidate)
+		got, _, _ := checkPIS(candidate)
 
 		if want := referencePIS(candidate); got != want {
 			t.Fatalf("PIS %s: got %v, reference says %v", candidate, got, want)
@@ -152,7 +152,7 @@ func TestVoterIDAgreesWithReference(t *testing.T) {
 			length = 13
 		}
 		candidate := randomDigits(random, length)
-		got, _, _ := ValidateTituloEleitor(candidate)
+		got, _, _ := checkTituloEleitor(candidate)
 
 		if want := referenceVoterID(candidate); got != want {
 			t.Fatalf("voter ID %s: got %v, reference says %v", candidate, got, want)
@@ -168,7 +168,7 @@ func TestConstructedNumbersAreAccepted(t *testing.T) {
 
 	for i := 0; i < 500; i++ {
 		pis := constructPIS(randomDigits(random, 10))
-		if isValid, _, message := ValidatePIS(pis); !isValid {
+		if isValid, _, message := checkPIS(pis); !isValid {
 			t.Fatalf("constructed PIS %s was rejected: %s", pis, message)
 		}
 		if !referencePIS(pis) {

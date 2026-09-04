@@ -1,4 +1,4 @@
-module DataValidatorAPI
+module github.com/jeferson0306/api-data-validator
 
 go 1.22.5
 

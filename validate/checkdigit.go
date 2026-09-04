@@ -1,4 +1,4 @@
-package utils
+package validate
 
 // Most Brazilian document numbers end in check digits computed the same way: a
 // weighted sum of the preceding digits, taken modulo 11. Only the weights

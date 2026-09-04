@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import "regexp"
 
@@ -7,13 +7,13 @@ var (
 	renavamChars = regexp.MustCompile(`^[\d.\-\s]*$`)
 )
 
-// ValidateCNH checks a driving licence number.
+// checkCNH checks a driving licence number.
 //
 // The two check digits are unusual in being coupled: when the first overflows
 // past nine it is written as zero, and the second is then computed two lower to
 // compensate. Treating them independently — which is what most of the wrong
 // implementations of this do — accepts numbers the Detran would reject.
-func ValidateCNH(cnh string) (bool, string, string) {
+func checkCNH(cnh string) (bool, string, string) {
 	if !cnhChars.MatchString(cnh) {
 		return false, cnh, "Invalid CNH format (unexpected characters)"
 	}
@@ -59,13 +59,13 @@ func ValidateCNH(cnh string) (bool, string, string) {
 	return true, digits, "Valid CNH format"
 }
 
-// ValidateRenavam checks a vehicle registration number.
+// checkRenavam checks a vehicle registration number.
 //
 // Nine digits was the old format and eleven is the current one; the shorter is
 // the longer with leading zeros, so both are accepted and normalised to eleven.
 // The weights run from the right and cycle two through nine, unlike the
 // left-to-right descending series most Brazilian documents use.
-func ValidateRenavam(renavam string) (bool, string, string) {
+func checkRenavam(renavam string) (bool, string, string) {
 	if !renavamChars.MatchString(renavam) {
 		return false, renavam, "Invalid RENAVAM format (unexpected characters)"
 	}
