@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jeferson0306/api-data-validator/models"
+	"github.com/jeferson0306/brdoc/models"
 )
 
 func postBatch(t *testing.T, body string) (*httptest.ResponseRecorder, models.BatchResponse) {

@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jeferson0306/api-data-validator/docs"
-	"github.com/jeferson0306/api-data-validator/handlers"
-	"github.com/jeferson0306/api-data-validator/middleware"
-	"github.com/jeferson0306/api-data-validator/observability"
+	"github.com/jeferson0306/brdoc/docs"
+	"github.com/jeferson0306/brdoc/handlers"
+	"github.com/jeferson0306/brdoc/middleware"
+	"github.com/jeferson0306/brdoc/observability"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -39,14 +39,23 @@ func main() {
 
 	configureClientAddressing(router, logger)
 
-	router.GET("/health", handlers.HealthHandler)
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	router.GET("/validate", func(c *gin.Context) {
-		handlers.ValidateHandler(c.Writer, c.Request)
-	})
-	router.POST("/validate/batch", func(c *gin.Context) {
-		handlers.BatchHandler(c.Writer, c.Request)
-	})
+
+	validate := func(c *gin.Context) { handlers.ValidateHandler(c.Writer, c.Request) }
+	batch := func(c *gin.Context) { handlers.BatchHandler(c.Writer, c.Request) }
+
+	// Versioned routes are where new work goes.
+	v1 := router.Group("/v1")
+	v1.GET("/health", handlers.HealthHandler)
+	v1.GET("/validate", validate)
+	v1.POST("/validate/batch", batch)
+
+	// The unversioned paths stay, permanently. They were published, things
+	// point at them, and breaking a URL to tidy a prefix is a cost paid by
+	// other people. /v1 exists so the *next* change has somewhere to go.
+	router.GET("/health", handlers.HealthHandler)
+	router.GET("/validate", validate)
+	router.POST("/validate/batch", batch)
 
 	server := &http.Server{
 		Addr:              ":" + port(),

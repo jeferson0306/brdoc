@@ -8,7 +8,7 @@ Data Validator API
 A Go library for validating Brazilian documents, and an HTTP service built on it.
 
 ```bash
-go get github.com/jeferson0306/api-data-validator/validate
+go get github.com/jeferson0306/brdoc/validate
 ```
 
 ```go
@@ -47,7 +47,7 @@ is wrong — see `validate/inscricao_estadual_test.go`.
 ## Command line
 
 ```bash
-go install github.com/jeferson0306/api-data-validator/cmd/brdoc@latest
+go install github.com/jeferson0306/brdoc/cmd/brdoc@latest
 
 brdoc cpf 529.982.247-25 && echo accepted
 brdoc ie 0100482300112 AC

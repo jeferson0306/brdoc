@@ -14,7 +14,6 @@ type ValidationResponse struct {
 	Timestamp         time.Time              `json:"timestamp"`
 	ExecutionTimeMs   int                    `json:"execution_time_ms"`
 	LocationData      map[string]interface{} `json:"location_data,omitempty"`
-	FromCache         bool                   `json:"from_cache"`
 }
 
 // BatchRequest is one form's worth of values, checked in a single call.
@@ -66,5 +65,4 @@ type BatchResult struct {
 	Value     string `json:"value"`
 	IsValid   bool   `json:"is_valid"`
 	Message   string `json:"message"`
-	FromCache bool   `json:"from_cache"`
 }
