@@ -1,4 +1,4 @@
-module github.com/jeferson0306/api-data-validator
+module github.com/jeferson0306/brdoc
 
 go 1.22.5
 

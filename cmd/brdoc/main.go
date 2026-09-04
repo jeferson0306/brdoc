@@ -18,7 +18,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jeferson0306/api-data-validator/validate"
+	"github.com/jeferson0306/brdoc/validate"
 )
 
 const (

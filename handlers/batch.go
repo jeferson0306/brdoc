@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jeferson0306/api-data-validator/internal/cache"
-	"github.com/jeferson0306/api-data-validator/models"
-	"github.com/jeferson0306/api-data-validator/validate"
+	"github.com/jeferson0306/brdoc/models"
+	"github.com/jeferson0306/brdoc/validate"
 
 	"github.com/google/uuid"
 )
@@ -99,17 +98,6 @@ func validateItem(item models.BatchItem) models.BatchResult {
 	if strings.TrimSpace(item.Value) == "" {
 		result.ErrorCode = "MISSING_VALUE"
 		result.Message = "No value provided for this item"
-		return result
-	}
-
-	// CPF is the one check routed through the cache, so that from_cache means
-	// the same thing on both endpoints.
-	if key == "cpf" {
-		outcome, fromCache := cache.CPF(item.Value)
-		result.Value = outcome.Normalized
-		result.IsValid = outcome.Valid
-		result.Message = outcome.Reason
-		result.FromCache = fromCache
 		return result
 	}
 

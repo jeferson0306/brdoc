@@ -3,7 +3,7 @@ package validate_test
 import (
 	"testing"
 
-	"github.com/jeferson0306/api-data-validator/validate"
+	"github.com/jeferson0306/brdoc/validate"
 )
 
 // These exist to answer one question the service's design depends on: is any of

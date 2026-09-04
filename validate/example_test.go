@@ -3,7 +3,7 @@ package validate_test
 import (
 	"fmt"
 
-	"github.com/jeferson0306/api-data-validator/validate"
+	"github.com/jeferson0306/brdoc/validate"
 )
 
 func ExampleCPF() {

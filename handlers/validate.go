@@ -2,9 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/jeferson0306/api-data-validator/internal/cache"
-	"github.com/jeferson0306/api-data-validator/models"
-	"github.com/jeferson0306/api-data-validator/validate"
+	"github.com/jeferson0306/brdoc/models"
+	"github.com/jeferson0306/brdoc/validate"
 	"net/http"
 	"strings"
 	"time"
@@ -73,19 +72,8 @@ func ValidateHandler(w http.ResponseWriter, r *http.Request) {
 
 	// The qualifier is only read for the validations that take one; passing it
 	// unconditionally keeps this loop from growing a special case per document.
-	// CPF is the one check routed through the cache, because from_cache is part
-	// of the published response. Everything else goes straight to the library.
-	var (
-		result    validate.Result
-		fromCache bool
-	)
-	if key == "cpf" {
-		result, fromCache = cache.CPF(value)
-	} else {
-		result, _ = validate.ByKey(key, value, r.URL.Query().Get("uf"))
-	}
-
-	response = createResponse(key, value, result.Normalized, result.Valid, result.Reason, start, fromCache)
+	result, _ := validate.ByKey(key, value, r.URL.Query().Get("uf"))
+	response = createResponse(key, value, result.Normalized, result.Valid, result.Reason, start)
 
 	writeResponse(w, response)
 }
@@ -138,7 +126,7 @@ func writeResponse(w http.ResponseWriter, response models.ValidationResponse) {
 }
 
 // createResponse creates a response with the provided data.
-func createResponse(key, rawValue, sanitizedValue string, isValid bool, message string, start time.Time, fromCache bool) models.ValidationResponse {
+func createResponse(key, rawValue, sanitizedValue string, isValid bool, message string, start time.Time) models.ValidationResponse {
 	statusCode := http.StatusOK
 	errorCode := ""
 	if !isValid {
@@ -157,6 +145,5 @@ func createResponse(key, rawValue, sanitizedValue string, isValid bool, message 
 		RequestID:         uuid.New().String(),
 		Timestamp:         time.Now(),
 		ExecutionTimeMs:   int(time.Since(start).Milliseconds()),
-		FromCache:         fromCache,
 	}
 }
